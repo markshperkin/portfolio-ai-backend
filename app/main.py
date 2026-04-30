@@ -1,10 +1,20 @@
+from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from app.api.health import router as health_router
+from app.db import init_pool, close_pool
 
-app = FastAPI(title="portfolio-ai-backend", docs_url=None, redoc_url=None)
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    await init_pool()
+    yield
+    await close_pool()
+
+
+app = FastAPI(title="portfolio-ai-backend", docs_url=None, redoc_url=None, lifespan=lifespan)
 
 app.include_router(health_router)
 

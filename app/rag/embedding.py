@@ -1,14 +1,21 @@
-"""Embed text chunks using Voyage AI voyage-3-large (1024 dims)."""
+"""Embed text chunks using Voyage AI voyage-3-large (1024 dims, TASK-24-BE error handling)."""
 
 from __future__ import annotations
 
+import logging
 import os
 
 import voyageai
 
 MODEL = "voyage-3-large"
 DIMS = 1024
+log = logging.getLogger(__name__)
+
 _client: voyageai.Client | None = None
+
+
+class EmbeddingError(Exception):
+    """Raised when the embedding call fails."""
 
 
 def get_client() -> voyageai.Client:
@@ -22,16 +29,24 @@ def get_client() -> voyageai.Client:
 
 
 def embed_batch(texts: list[str]) -> list[list[float]]:
-    """Embed a batch of texts. Returns list of 1024-dim float vectors."""
+    """Embed a batch of texts. Raises EmbeddingError on failure."""
     if not texts:
         return []
-    client = get_client()
-    result = client.embed(texts, model=MODEL, input_type="document")
-    return result.embeddings
+    try:
+        client = get_client()
+        result = client.embed(texts, model=MODEL, input_type="document")
+        return result.embeddings
+    except Exception as e:
+        log.error("Voyage embed_batch error: %s", e)
+        raise EmbeddingError("batch") from e
 
 
 def embed_query(text: str) -> list[float]:
-    """Embed a single query string with query input_type."""
-    client = get_client()
-    result = client.embed([text], model=MODEL, input_type="query")
-    return result.embeddings[0]
+    """Embed a single query string. Raises EmbeddingError on failure."""
+    try:
+        client = get_client()
+        result = client.embed([text], model=MODEL, input_type="query")
+        return result.embeddings[0]
+    except Exception as e:
+        log.error("Voyage embed_query error: %s", e)
+        raise EmbeddingError("query") from e

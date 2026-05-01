@@ -37,7 +37,13 @@ class ErrorEvent(BaseModel):
     message: str
 
 
-SSEEvent = RetrievalStepEvent | DeltaEvent | CitationEvent | DoneEvent | ErrorEvent
+class ActionEvent(BaseModel):
+    type: Literal["action"] = "action"
+    action_type: Literal["download", "open"]
+    url: str
+
+
+SSEEvent = RetrievalStepEvent | DeltaEvent | CitationEvent | DoneEvent | ErrorEvent | ActionEvent
 
 
 def sse_format(event: BaseModel) -> str:

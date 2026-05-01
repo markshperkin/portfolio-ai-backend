@@ -1,9 +1,15 @@
-import asyncio
+from __future__ import annotations
+
 from typing import AsyncGenerator
+
 from fastapi import APIRouter
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
-from app.models import RetrievalStepEvent, DeltaEvent, DoneEvent, sse_format
+
+from app.llm.client import stream_completion
+from app.models import CitationEvent, CitationSource, DeltaEvent, DoneEvent, ErrorEvent, RetrievalStepEvent, sse_format
+from app.prompt.system import build_system_prompt
+from app.rag.retrieval import retrieve
 
 router = APIRouter(prefix="/api")
 
@@ -18,27 +24,52 @@ class ChatRequest(BaseModel):
     session_id: str | None = None
 
 
-async def _tracer_stream() -> AsyncGenerator[str, None]:
-    """Hardcoded hello-world stream: retrieval_step → deltas → done."""
-    yield sse_format(RetrievalStepEvent(step="retrieving", detail="searching knowledge base"))
-    await asyncio.sleep(0.05)
-    yield sse_format(RetrievalStepEvent(step="searching", detail="ranking results"))
-    await asyncio.sleep(0.05)
-    yield sse_format(RetrievalStepEvent(step="synthesizing"))
-    await asyncio.sleep(0.05)
+async def _rag_stream(request: ChatRequest) -> AsyncGenerator[str, None]:
+    # Extract the last user message for retrieval
+    user_messages = [m for m in request.messages if m.role == "user"]
+    if not user_messages:
+        yield sse_format(ErrorEvent(code="no_user_message", message="No user message provided."))
+        return
 
-    response = "Hello! I'm Mark's GPT, a RAG-backed assistant. Ask me about Mark's projects, experience, or skills."
-    for char in response:
-        yield sse_format(DeltaEvent(text=char))
-        await asyncio.sleep(0.01)
+    query = user_messages[-1].content
 
-    yield sse_format(DoneEvent())
+    try:
+        yield sse_format(RetrievalStepEvent(step="retrieving", detail="searching knowledge base"))
+        chunks = await retrieve(query)
+
+        yield sse_format(RetrievalStepEvent(step="searching", detail="ranking results"))
+        system = build_system_prompt(chunks)
+
+        yield sse_format(RetrievalStepEvent(step="synthesizing"))
+
+        # Pass full conversation history to Anthropic (stateless multi-turn)
+        anthropic_messages = [{"role": m.role, "content": m.content} for m in request.messages]
+
+        async for text in stream_completion(anthropic_messages, system):
+            yield sse_format(DeltaEvent(text=text))
+
+        # Emit citation event with de-duped source titles
+        seen: set[str] = set()
+        sources: list[CitationSource] = []
+        for chunk in chunks:
+            if chunk.source_path not in seen:
+                seen.add(chunk.source_path)
+                sources.append(CitationSource(title=chunk.title))
+
+        if sources:
+            yield sse_format(CitationEvent(sources=sources))
+
+        yield sse_format(DoneEvent())
+
+    except Exception as exc:
+        yield sse_format(ErrorEvent(code="pipeline_error", message="Something went wrong. Try again."))
+        raise
 
 
 @router.post("/chat")
 async def chat(body: ChatRequest) -> StreamingResponse:
     return StreamingResponse(
-        _tracer_stream(),
+        _rag_stream(body),
         media_type="text/event-stream",
         headers={"X-Accel-Buffering": "no", "Cache-Control": "no-cache"},
     )

@@ -14,11 +14,22 @@ from app.prompt.contacts import MARK_EMAIL
 from app.prompt.system import build_system_prompt
 from app.rag.embedding import EmbeddingError
 from app.rag.retrieval import retrieve
+from app.security.abuse import check_and_log_abuse
 from app.security.rate_limit import check_rate_limit
 
 log = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api")
+
+# Cosine similarity thresholds (tunable)
+_T_WEAK = 0.45   # below this → skip LLM, return no-match message
+_T_STRONG = 0.65  # above this → full confidence; between → thin context (LLM handles)
+
+_NO_MATCH_MSG = (
+    "I don't have enough information about that in my knowledge base. "
+    "Ask about Mark's projects, work, or skills — or reach him directly "
+    f"at {MARK_EMAIL}."
+)
 
 _FALLBACK_LLM = (
     f"The models are taking a nap — try again in a moment. "
@@ -52,21 +63,28 @@ async def _chat_stream(request: ChatRequest, client_ip: str) -> AsyncGenerator[s
 
     query = user_messages[-1].content
 
-    # 1. Slash command short-circuit (before rate-limit and RAG)
+    # 1. Slash command short-circuit (before everything)
     cmd = detect_command(query)
     if cmd is not None:
         async for chunk in handle_command(cmd):
             yield chunk
         return
 
-    # 2. Rate limit
+    # 2. Abuse / jailbreak check
+    is_abuse, abuse_msg = await check_and_log_abuse(client_ip, query)
+    if is_abuse:
+        yield sse_format(DeltaEvent(text=abuse_msg))
+        yield sse_format(DoneEvent())
+        return
+
+    # 3. Rate limit
     allowed, rate_msg = await check_rate_limit(client_ip)
     if not allowed:
         yield sse_format(DeltaEvent(text=rate_msg))
         yield sse_format(DoneEvent())
         return
 
-    # 3. RAG pipeline with typed error mapping
+    # 4. RAG pipeline with typed error mapping
     try:
         yield sse_format(RetrievalStepEvent(step="retrieving", detail="searching knowledge base"))
         try:
@@ -78,6 +96,13 @@ async def _chat_stream(request: ChatRequest, client_ip: str) -> AsyncGenerator[s
         except Exception:
             log.exception("DB retrieval error for query=%r", query[:80])
             yield sse_format(DeltaEvent(text=_FALLBACK_DB))
+            yield sse_format(DoneEvent())
+            return
+
+        # 4a. Threshold check — skip LLM if no meaningful match
+        top_score = chunks[0].score if chunks else 0.0
+        if top_score < _T_WEAK:
+            yield sse_format(DeltaEvent(text=_NO_MATCH_MSG))
             yield sse_format(DoneEvent())
             return
 

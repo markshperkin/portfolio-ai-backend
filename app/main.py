@@ -9,6 +9,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.api.chat import router as chat_router
 from app.api.health import router as health_router
+from app.api.resume import router as resume_router
 from app.db import init_pool, close_pool
 
 # Structured logging — internals to stdout only, never to the wire
@@ -40,6 +41,7 @@ app = FastAPI(title="portfolio-ai-backend", docs_url=None, redoc_url=None, lifes
 
 app.include_router(health_router)
 app.include_router(chat_router)
+app.include_router(resume_router)
 
 
 @app.exception_handler(StarletteHTTPException)

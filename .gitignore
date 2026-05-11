@@ -18,7 +18,7 @@ build/
 .ruff_cache/
 
 # Generated data (Chroma vector store + abuse log)
-data/
+data/abuse_log.db
 
 # Docker
 *.log

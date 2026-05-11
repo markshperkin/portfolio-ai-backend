@@ -68,4 +68,5 @@ jobs:
             echo "$GH_TOKEN" | docker login ghcr.io -u "$GH_ACTOR" --password-stdin
             cd /opt/portfolio
             docker compose pull backend-$BRANCH
+            docker run --rm $IMAGE:$BRANCH tar -C /app/data -cf - . | tar -C /opt/portfolio/data/$BRANCH -xf -
             docker compose up -d --no-deps backend-$BRANCH

@@ -40,7 +40,7 @@ jobs:
     env:
       BRANCH: ${{ github.ref_name }}
       IMAGE: ghcr.io/markshperkin/portfolio-ai-backend
-      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}
       GH_ACTOR: ${{ github.actor }}
     steps:
       - uses: actions/checkout@v4
@@ -63,9 +63,9 @@ jobs:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
-          envs: BRANCH,IMAGE,GH_TOKEN,GH_ACTOR
+          envs: BRANCH,IMAGE,GHCR_TOKEN,GH_ACTOR
           script: |
-            echo "$GH_TOKEN" | docker login ghcr.io -u "$GH_ACTOR" --password-stdin
+            echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GH_ACTOR" --password-stdin
             cd /opt/portfolio
             docker compose pull backend-$BRANCH
             docker run --rm $IMAGE:$BRANCH tar -C /app/data -cf - . | tar -C /opt/portfolio/data/$BRANCH -xf -

@@ -65,15 +65,17 @@ def main() -> None:
         for i, chunk in enumerate(chunks):
             ids.append(f"{doc.path}::{i}")
             documents.append(chunk)
-            metadatas.append({
-                "path": doc.path,
-                "title": doc.title,
-                "category": doc.category,
-                "tags": ",".join(doc.tags),  # Chroma metadata values must be scalar
-                "last_updated": doc.last_updated,
-                "weight": doc.weight,
-                "chunk_index": i,
-            })
+            metadatas.append(
+                {
+                    "path": doc.path,
+                    "title": doc.title,
+                    "category": doc.category,
+                    "tags": ",".join(doc.tags),  # Chroma metadata values must be scalar
+                    "last_updated": doc.last_updated,
+                    "weight": doc.weight,
+                    "chunk_index": i,
+                }
+            )
 
     print(f"  {len(ids)} chunk(s) to embed")
 
@@ -82,7 +84,7 @@ def main() -> None:
     for batch_num, batch_start in enumerate(range(0, len(ids), BATCH_SIZE)):
         if batch_num > 0:
             time.sleep(BATCH_DELAY_SECONDS)
-        batch = documents[batch_start: batch_start + BATCH_SIZE]
+        batch = documents[batch_start : batch_start + BATCH_SIZE]
         print(f"  Embedding batch {batch_num + 1}/{total_batches}…")
         vectors.extend(embed_batch(batch))
 

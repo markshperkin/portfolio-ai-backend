@@ -7,6 +7,7 @@ from pydantic import BaseModel
 # Wire format: event: <type>\ndata: <json>\n\n
 # ---------------------------------------------------------------------------
 
+
 class RetrievalStepEvent(BaseModel):
     type: Literal["retrieval_step"] = "retrieval_step"
     step: Literal["retrieving", "searching", "synthesizing"]

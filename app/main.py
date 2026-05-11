@@ -16,22 +16,22 @@ from app.security.abuse import init_abuse_db
 
 load_dotenv(Path(__file__).resolve().parents[1] / ".env")
 
-logging.config.dictConfig({
-    "version": 1,
-    "disable_existing_loggers": False,
-    "formatters": {
-        "json": {
-            "format": (
-                '{"time":"%(asctime)s","level":"%(levelname)s"'
-                ',"logger":"%(name)s","msg":"%(message)s"}'
-            )
-        }
-    },
-    "handlers": {
-        "stdout": {"class": "logging.StreamHandler", "formatter": "json"}
-    },
-    "root": {"level": "INFO", "handlers": ["stdout"]},
-})
+logging.config.dictConfig(
+    {
+        "version": 1,
+        "disable_existing_loggers": False,
+        "formatters": {
+            "json": {
+                "format": (
+                    '{"time":"%(asctime)s","level":"%(levelname)s"'
+                    ',"logger":"%(name)s","msg":"%(message)s"}'
+                )
+            }
+        },
+        "handlers": {"stdout": {"class": "logging.StreamHandler", "formatter": "json"}},
+        "root": {"level": "INFO", "handlers": ["stdout"]},
+    }
+)
 
 log = logging.getLogger(__name__)
 

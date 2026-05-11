@@ -97,8 +97,7 @@ WHAT YOU NEVER DO
 def build_system_prompt(chunks: list[ChunkResult]) -> str:
     if not chunks:
         return (
-            _MEGA_PROMPT
-            + "\n\nNo context retrieved. Tell the visitor you don't have enough "
+            _MEGA_PROMPT + "\n\nNo context retrieved. Tell the visitor you don't have enough "
             "information on that topic and suggest they ask about Mark's projects, "
             "work, or skills."
         )

@@ -30,7 +30,7 @@ log = logging.getLogger(__name__)
 router = APIRouter(prefix="/api")
 
 # Cosine similarity thresholds (tunable)
-_T_WEAK = 0.30   # below this → skip LLM, return no-match message
+_T_WEAK = 0.30  # below this → skip LLM, return no-match message
 _T_STRONG = 0.50  # above this → full confidence; between → thin context (LLM handles)
 
 _NO_MATCH_MSG = (
@@ -40,8 +40,7 @@ _NO_MATCH_MSG = (
 )
 
 _FALLBACK_LLM = (
-    f"The models are taking a nap — try again in a moment. "
-    f"Or reach Mark directly at {MARK_EMAIL}."
+    f"The models are taking a nap — try again in a moment. Or reach Mark directly at {MARK_EMAIL}."
 )
 _FALLBACK_EMBEDDING = (
     f"Having trouble searching the knowledge base right now. "

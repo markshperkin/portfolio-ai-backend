@@ -1,4 +1,5 @@
 """Chroma cosine-similarity retrieval."""
+
 from __future__ import annotations
 
 import asyncio
@@ -35,14 +36,14 @@ def _query_chroma(vector: list[float], top_k: int) -> list[ChunkResult]:
     )
 
     chunks: list[ChunkResult] = []
-    for doc, meta, dist in zip(
-        res["documents"][0], res["metadatas"][0], res["distances"][0]
-    ):
+    for doc, meta, dist in zip(res["documents"][0], res["metadatas"][0], res["distances"][0]):
         score = 1.0 - dist  # cosine space: distance = 1 - similarity
-        chunks.append(ChunkResult(
-            source_path=meta.get("path", ""),
-            title=meta.get("title", meta.get("path", "")),
-            content=doc,
-            score=score,
-        ))
+        chunks.append(
+            ChunkResult(
+                source_path=meta.get("path", ""),
+                title=meta.get("title", meta.get("path", "")),
+                content=doc,
+                score=score,
+            )
+        )
     return chunks

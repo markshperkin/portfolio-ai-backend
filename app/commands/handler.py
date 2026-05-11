@@ -67,6 +67,7 @@ async def handle_command(cmd: str) -> AsyncGenerator[str, None]:
     elif cmd == "sudo hire-mark":
         # Populated in TASK-16 (HITL) — contacts.py constants replace this
         from app.prompt import contacts as _c
+
         response = (
             f"Here's how to reach Mark:\n\n"
             f"  Email:    {_c.MARK_EMAIL}\n"
@@ -76,6 +77,7 @@ async def handle_command(cmd: str) -> AsyncGenerator[str, None]:
     elif cmd == "cat resume.pdf":
         # Populated in TASK-17-BE (HITL) — emits action event before done
         from app.models import ActionEvent
+
         yield sse_format(DeltaEvent(text="Opening résumé…"))
         yield sse_format(ActionEvent(action_type="download", url="/api/resume.pdf"))
         yield sse_format(DoneEvent())

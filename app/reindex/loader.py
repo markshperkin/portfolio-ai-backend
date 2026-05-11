@@ -30,13 +30,13 @@ _DIR_TO_CATEGORY: dict[str, str] = {
 
 @dataclass
 class KnowledgeDoc:
-    path: str          # relative to corpus root, e.g. "projects/tutor-ai.md"
+    path: str  # relative to corpus root, e.g. "projects/tutor-ai.md"
     title: str
     category: str
     tags: list[str]
     last_updated: str
     weight: float
-    body: str          # everything after the frontmatter block
+    body: str  # everything after the frontmatter block
     metadata: dict[str, Any]
 
 
@@ -92,15 +92,24 @@ def _parse_with_frontmatter(raw: str, m: re.Match, rel_path: str) -> KnowledgeDo
         _fail(rel_path, f"last_updated must be YYYY-MM-DD, got {last_updated!r}")
 
     weight = float(fm.get("weight", 1.0))
-    body = raw[m.end():]
+    body = raw[m.end() :]
 
     metadata = {
-        "title": title, "category": category, "tags": tags,
-        "last_updated": last_updated, "weight": weight,
+        "title": title,
+        "category": category,
+        "tags": tags,
+        "last_updated": last_updated,
+        "weight": weight,
     }
     return KnowledgeDoc(
-        path=rel_path, title=title, category=category, tags=tags,
-        last_updated=last_updated, weight=weight, body=body, metadata=metadata,
+        path=rel_path,
+        title=title,
+        category=category,
+        tags=tags,
+        last_updated=last_updated,
+        weight=weight,
+        body=body,
+        metadata=metadata,
     )
 
 
@@ -127,12 +136,21 @@ def _parse_plain(raw: str, rel_path: str, rel: Path) -> KnowledgeDoc:
     weight = 1.0
 
     metadata = {
-        "title": title, "category": category, "tags": tags,
-        "last_updated": last_updated, "weight": weight,
+        "title": title,
+        "category": category,
+        "tags": tags,
+        "last_updated": last_updated,
+        "weight": weight,
     }
     return KnowledgeDoc(
-        path=rel_path, title=title, category=category, tags=tags,
-        last_updated=last_updated, weight=weight, body=raw, metadata=metadata,
+        path=rel_path,
+        title=title,
+        category=category,
+        tags=tags,
+        last_updated=last_updated,
+        weight=weight,
+        body=raw,
+        metadata=metadata,
     )
 
 

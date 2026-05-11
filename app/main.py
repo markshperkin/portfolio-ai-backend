@@ -1,6 +1,10 @@
 import logging
 import logging.config
 from contextlib import asynccontextmanager
+from pathlib import Path
+
+from dotenv import load_dotenv
+load_dotenv(Path(__file__).resolve().parents[1] / ".env")
 
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
@@ -10,15 +14,17 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from app.api.chat import router as chat_router
 from app.api.health import router as health_router
 from app.api.resume import router as resume_router
-from app.db import init_pool, close_pool
+from app.security.abuse import init_abuse_db
 
-# Structured logging — internals to stdout only, never to the wire
 logging.config.dictConfig({
     "version": 1,
     "disable_existing_loggers": False,
     "formatters": {
         "json": {
-            "format": '{"time":"%(asctime)s","level":"%(levelname)s","logger":"%(name)s","msg":"%(message)s"}'
+            "format": (
+                '{"time":"%(asctime)s","level":"%(levelname)s"'
+                ',"logger":"%(name)s","msg":"%(message)s"}'
+            )
         }
     },
     "handlers": {
@@ -32,9 +38,8 @@ log = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    await init_pool()
+    await init_abuse_db()
     yield
-    await close_pool()
 
 
 app = FastAPI(title="portfolio-ai-backend", docs_url=None, redoc_url=None, lifespan=lifespan)
@@ -58,6 +63,5 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
 
 @app.exception_handler(Exception)
 async def generic_exception_handler(request: Request, exc: Exception):
-    # Log full detail server-side; return nothing useful to the client
     log.exception("Unhandled exception on %s %s", request.method, request.url.path)
     return JSONResponse(status_code=500, content={"error": "internal server error"})

@@ -9,7 +9,15 @@ from pydantic import BaseModel
 
 from app.commands.handler import detect_command, handle_command
 from app.llm.client import LLMError, stream_completion
-from app.models import CitationEvent, CitationSource, DeltaEvent, DoneEvent, ErrorEvent, RetrievalStepEvent, sse_format
+from app.models import (
+    CitationEvent,
+    CitationSource,
+    DeltaEvent,
+    DoneEvent,
+    ErrorEvent,
+    RetrievalStepEvent,
+    sse_format,
+)
 from app.prompt.contacts import MARK_EMAIL
 from app.prompt.system import build_system_prompt
 from app.rag.embedding import EmbeddingError
@@ -22,8 +30,8 @@ log = logging.getLogger(__name__)
 router = APIRouter(prefix="/api")
 
 # Cosine similarity thresholds (tunable)
-_T_WEAK = 0.45   # below this → skip LLM, return no-match message
-_T_STRONG = 0.65  # above this → full confidence; between → thin context (LLM handles)
+_T_WEAK = 0.30   # below this → skip LLM, return no-match message
+_T_STRONG = 0.50  # above this → full confidence; between → thin context (LLM handles)
 
 _NO_MATCH_MSG = (
     "I don't have enough information about that in my knowledge base. "

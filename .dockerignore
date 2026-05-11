@@ -4,6 +4,6 @@
 __pycache__
 *.pyc
 *.pyo
-data/
+data/abuse_log.db
 infra/
 reindexing.md

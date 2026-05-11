@@ -131,10 +131,10 @@ async def _chat_stream(request: ChatRequest, client_ip: str) -> AsyncGenerator[s
         # Citation: de-duped by source path
         seen: set[str] = set()
         sources: list[CitationSource] = []
-        for chunk in chunks:
-            if chunk.source_path not in seen:
-                seen.add(chunk.source_path)
-                sources.append(CitationSource(title=chunk.title))
+        for result in chunks:
+            if result.source_path not in seen:
+                seen.add(result.source_path)
+                sources.append(CitationSource(title=result.title))
 
         if sources:
             yield sse_format(CitationEvent(sources=sources))

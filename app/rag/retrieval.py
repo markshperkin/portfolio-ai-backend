@@ -30,18 +30,22 @@ def _query_chroma(vector: list[float], top_k: int) -> list[ChunkResult]:
         return []
 
     res = collection.query(
-        query_embeddings=[vector],
+        query_embeddings=[vector],  # type: ignore[arg-type]
         n_results=min(top_k, count),
         include=["documents", "metadatas", "distances"],
     )
 
+    docs = res["documents"] or []
+    metas = res["metadatas"] or []
+    dists = res["distances"] or []
+
     chunks: list[ChunkResult] = []
-    for doc, meta, dist in zip(res["documents"][0], res["metadatas"][0], res["distances"][0]):
+    for doc, meta, dist in zip(docs[0], metas[0], dists[0]):
         score = 1.0 - dist  # cosine space: distance = 1 - similarity
         chunks.append(
             ChunkResult(
-                source_path=meta.get("path", ""),
-                title=meta.get("title", meta.get("path", "")),
+                source_path=str(meta.get("path", "")),
+                title=str(meta.get("title", meta.get("path", ""))),
                 content=doc,
                 score=score,
             )

@@ -5,7 +5,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
-from typing import AsyncGenerator
+from typing import Any, AsyncGenerator
 
 import anthropic
 
@@ -33,7 +33,7 @@ class LLMError(Exception):
 
 
 async def stream_completion(
-    messages: list[dict],
+    messages: list[dict[str, Any]],
     system: str,
 ) -> AsyncGenerator[str, None]:
     """Stream text tokens from Anthropic. Raises LLMError on failure."""
@@ -43,7 +43,7 @@ async def stream_completion(
             model=MODEL,
             max_tokens=MAX_TOKENS,
             system=system,
-            messages=messages,
+            messages=messages,  # type: ignore[arg-type]
         ) as stream:
             async for text in stream.text_stream:
                 yield text

@@ -100,7 +100,7 @@ def main() -> None:
         name=COLLECTION_NAME,
         metadata={"hnsw:space": "cosine"},
     )
-    collection.add(ids=ids, embeddings=vectors, documents=documents, metadatas=metadatas)
+    collection.add(ids=ids, embeddings=vectors, documents=documents, metadatas=metadatas)  # type: ignore[arg-type]
 
     print(f"Done. {len(ids)} chunk(s) indexed.")
 

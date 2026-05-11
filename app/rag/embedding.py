@@ -35,7 +35,7 @@ def embed_batch(texts: list[str]) -> list[list[float]]:
     try:
         client = get_client()
         result = client.embed(texts, model=MODEL, input_type="document")
-        return result.embeddings
+        return result.embeddings  # type: ignore[return-value]
     except Exception as e:
         log.error("Voyage embed_batch error: %s", e)
         raise EmbeddingError("batch") from e
@@ -46,7 +46,7 @@ def embed_query(text: str) -> list[float]:
     try:
         client = get_client()
         result = client.embed([text], model=MODEL, input_type="query")
-        return result.embeddings[0]
+        return result.embeddings[0]  # type: ignore[return-value]
     except Exception as e:
         log.error("Voyage embed_query error: %s", e)
         raise EmbeddingError("query") from e

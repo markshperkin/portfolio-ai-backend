@@ -1,0 +1,43 @@
+networks:
+  portfolio:
+
+volumes:
+  caddy_data:
+
+services:
+  caddy:
+    image: caddy:latest
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile
+      - caddy_data:/data
+    networks: [portfolio]
+
+  backend-test:
+    image: ghcr.io/markshperkin/portfolio-ai-backend:test
+    restart: unless-stopped
+    env_file: .env.test
+    volumes:
+      - ./data/test:/app/data
+    networks: [portfolio]
+
+  frontend-test:
+    image: ghcr.io/markshperkin/portfolio-ai-frontend:test
+    restart: unless-stopped
+    networks: [portfolio]
+
+  backend-prod:
+    image: ghcr.io/markshperkin/portfolio-ai-backend:prod
+    restart: unless-stopped
+    env_file: .env.prod
+    volumes:
+      - ./data/prod:/app/data
+    networks: [portfolio]
+
+  frontend-prod:
+    image: ghcr.io/markshperkin/portfolio-ai-frontend:prod
+    restart: unless-stopped
+    networks: [portfolio]

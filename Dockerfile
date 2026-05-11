@@ -1,19 +1,8 @@
 FROM python:3.11-slim
-
-ARG GIT_SHA=dev
-ENV GIT_SHA=${GIT_SHA}
-
 WORKDIR /app
-
-RUN adduser --disabled-password --gecos "" appuser
-
 COPY pyproject.toml .
-COPY app/ app/
-
-RUN pip install --no-cache-dir -e .
-
-USER appuser
-
+COPY app/ ./app/
+COPY static/ ./static/
+RUN pip install --no-cache-dir .
 EXPOSE 8000
-
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]

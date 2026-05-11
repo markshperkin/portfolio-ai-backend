@@ -1,0 +1,9 @@
+test.markshperkin.com {
+    reverse_proxy /api/* backend-test:8000
+    reverse_proxy /* frontend-test:3000
+}
+
+markshperkin.com, www.markshperkin.com {
+    reverse_proxy /api/* backend-prod:8000
+    reverse_proxy /* frontend-prod:3000
+}

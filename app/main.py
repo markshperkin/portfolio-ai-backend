@@ -4,8 +4,6 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 from dotenv import load_dotenv
-load_dotenv(Path(__file__).resolve().parents[1] / ".env")
-
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
@@ -15,6 +13,8 @@ from app.api.chat import router as chat_router
 from app.api.health import router as health_router
 from app.api.resume import router as resume_router
 from app.security.abuse import init_abuse_db
+
+load_dotenv(Path(__file__).resolve().parents[1] / ".env")
 
 logging.config.dictConfig({
     "version": 1,

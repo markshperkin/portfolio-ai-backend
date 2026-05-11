@@ -17,6 +17,9 @@ build/
 .mypy_cache/
 .ruff_cache/
 
+# Generated data (Chroma vector store + abuse log)
+data/
+
 # Docker
 *.log
 

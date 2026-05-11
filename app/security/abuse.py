@@ -1,14 +1,16 @@
-"""Abuse / jailbreak classifier (TASK-23-BE).
+"""Abuse / jailbreak classifier.
 
 Detects jailbreak and manipulation attempts via regex, logs flagged attempts
-to the abuse_log table, and throttles repeat offenders.
+to a local SQLite file, and throttles repeat offenders.
 """
 
 from __future__ import annotations
 
+import os
 import re
 
-from app.db import get_pool
+import aiosqlite
+
 from app.security.hashing import hash_ip
 
 _FLAGS = re.IGNORECASE | re.DOTALL
@@ -43,6 +45,25 @@ _THROTTLE_MSG = (
     "If this is a mistake, email markshperkin1@gmail.com."
 )
 
+ABUSE_DB_PATH = os.environ.get("ABUSE_DB_PATH", "data/abuse_log.db")
+
+
+async def init_abuse_db() -> None:
+    async with aiosqlite.connect(ABUSE_DB_PATH) as db:
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS abuse_log (
+                id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                hashed_ip   TEXT        NOT NULL,
+                prompt_text TEXT,
+                abuse_type  TEXT,
+                created_at  TEXT        NOT NULL DEFAULT (datetime('now'))
+            )
+        """)
+        await db.execute(
+            "CREATE INDEX IF NOT EXISTS abuse_ip_time ON abuse_log (hashed_ip, created_at DESC)"
+        )
+        await db.commit()
+
 
 def is_abusive(text: str) -> bool:
     return any(p.search(text) for p in _PATTERNS)
@@ -54,24 +75,21 @@ async def check_and_log_abuse(ip: str, text: str) -> tuple[bool, str]:
         return False, ""
 
     hashed = hash_ip(ip)
-    pool = get_pool()
 
-    await pool.execute(
-        """
-        INSERT INTO abuse_log (hashed_ip, prompt_text, abuse_type)
-        VALUES ($1, $2, 'jailbreak')
-        """,
-        hashed,
-        text[:500],
-    )
+    async with aiosqlite.connect(ABUSE_DB_PATH) as db:
+        await db.execute(
+            "INSERT INTO abuse_log (hashed_ip, prompt_text, abuse_type) VALUES (?, ?, 'jailbreak')",
+            (hashed, text[:500]),
+        )
+        await db.commit()
 
-    count: int = await pool.fetchval(
-        """
-        SELECT COUNT(*) FROM abuse_log
-        WHERE hashed_ip = $1 AND created_at > now() - interval '24 hours'
-        """,
-        hashed,
-    )
+        async with db.execute(
+            "SELECT COUNT(*) FROM abuse_log "
+            "WHERE hashed_ip = ? AND created_at > datetime('now', '-24 hours')",
+            (hashed,),
+        ) as cursor:
+            row = await cursor.fetchone()
+            count = row[0] if row else 0
 
     if count >= _THROTTLE_THRESHOLD:
         return True, _THROTTLE_MSG

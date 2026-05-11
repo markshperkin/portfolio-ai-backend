@@ -2,7 +2,6 @@ from typing import Literal, Optional
 
 from pydantic import BaseModel
 
-
 # ---------------------------------------------------------------------------
 # SSE event schemas (TASK-5-BE)
 # Wire format: event: <type>\ndata: <json>\n\n

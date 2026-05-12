@@ -24,7 +24,7 @@ load_dotenv(Path(__file__).resolve().parents[2] / ".env")
 
 BATCH_SIZE = 8
 # Voyage free tier: 3 RPM. Sleep between batches to avoid rate-limit errors.
-BATCH_DELAY_SECONDS = 21
+BATCH_DELAY_SECONDS = 25
 
 
 def parse_args() -> argparse.Namespace:

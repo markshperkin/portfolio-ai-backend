@@ -14,6 +14,7 @@ log = logging.getLogger(__name__)
 
 _started_at = datetime.now(timezone.utc).isoformat()
 
+
 class CheckResult(BaseModel):
     status: str  # "ok" | "error"
     detail: str

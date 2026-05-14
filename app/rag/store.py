@@ -8,17 +8,16 @@ from pathlib import Path
 import chromadb
 
 COLLECTION_NAME = "chunks"
-_collection: chromadb.Collection | None = None
+_client: chromadb.PersistentClient | None = None
 
 
 def get_collection() -> chromadb.Collection:
-    global _collection
-    if _collection is None:
+    global _client
+    if _client is None:
         path = os.environ.get("CHROMA_PATH", "data/chroma_db")
         Path(path).mkdir(parents=True, exist_ok=True)
-        client = chromadb.PersistentClient(path=path)
-        _collection = client.get_or_create_collection(
-            name=COLLECTION_NAME,
-            metadata={"hnsw:space": "cosine"},
-        )
-    return _collection
+        _client = chromadb.PersistentClient(path=path)
+    return _client.get_or_create_collection(
+        name=COLLECTION_NAME,
+        metadata={"hnsw:space": "cosine"},
+    )

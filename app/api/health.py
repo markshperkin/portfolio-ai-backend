@@ -1,7 +1,6 @@
 import asyncio
 import logging
 import os
-import time
 from datetime import datetime, timezone
 
 from fastapi import APIRouter
@@ -14,9 +13,6 @@ router = APIRouter(prefix="/api")
 log = logging.getLogger(__name__)
 
 _started_at = datetime.now(timezone.utc).isoformat()
-
-_cache: dict = {}
-_CACHE_TTL = 60  # seconds
 
 
 class CheckResult(BaseModel):
@@ -72,12 +68,4 @@ async def _run_checks() -> ReadinessResponse:
 
 @router.get("/health", response_model=ReadinessResponse)
 async def health() -> ReadinessResponse:
-    now = time.monotonic()
-    cached = _cache.get("result")
-    if cached and (now - _cache.get("ts", 0)) < _CACHE_TTL:
-        return cached
-
-    result = await _run_checks()
-    _cache["result"] = result
-    _cache["ts"] = now
-    return result
+    return await _run_checks()

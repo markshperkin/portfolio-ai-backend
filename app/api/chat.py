@@ -29,9 +29,8 @@ log = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api")
 
-# Cosine similarity thresholds (tunable)
-_T_WEAK = 0.30  # below this → skip LLM, return no-match message
-_T_STRONG = 0.50  # above this → full confidence; between → thin context (LLM handles)
+# Cosine similarity threshold — below this, skip LLM and return no-match message
+_T_WEAK = 0.35
 
 _NO_MATCH_MSG = (
     "I don't have enough information about that in my knowledge base. "

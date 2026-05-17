@@ -5,7 +5,7 @@ State lost on backend restart — acceptable.
 
 Limits:
   - Cooldown: 5s between requests from same hashed IP
-  - Daily cap:  25 requests in a rolling 24h window
+  - Daily cap:  50 requests in a rolling 24h window
 """
 
 from __future__ import annotations
@@ -18,7 +18,7 @@ from app.prompt.contacts import MARK_EMAIL
 from app.security.hashing import hash_ip
 
 COOLDOWN_SECONDS = 5
-DAILY_CAP = 25
+DAILY_CAP = 50
 WINDOW_SECONDS = 86400  # 24h
 
 _lock = asyncio.Lock()

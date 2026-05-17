@@ -21,7 +21,7 @@ Embed query → Voyage AI voyage-3-large (1024-dim)
     ↓
 ChromaDB HNSW cosine search → top-5 chunks
     ↓
-Threshold gate: score < 0.30 → refuse, ≥ 0.30 → proceed
+Threshold gate: score < 0.35 → refuse, ≥ 0.35 → proceed
     ↓
 Build system prompt (persona + guardrails + retrieved context)
     ↓

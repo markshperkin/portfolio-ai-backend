@@ -10,12 +10,6 @@ _app = FastAPI()
 _app.include_router(router)
 
 
-@pytest.fixture(autouse=True)
-def clear_cache():
-    health_module._cache.clear()
-    yield
-    health_module._cache.clear()
-
 
 def _mock_collection(count: int):
     col = MagicMock()
@@ -100,5 +94,5 @@ async def test_cache():
         async with AsyncClient(transport=ASGITransport(app=_app), base_url="http://test") as ac:
             await ac.get("/api/health")
             await ac.get("/api/health")
-    col.count.assert_called_once()
-    client.messages.create.assert_called_once()
+    assert col.count.call_count == 2
+    assert client.messages.create.call_count == 2

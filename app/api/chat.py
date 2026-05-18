@@ -8,7 +8,7 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 from app.commands.handler import detect_command, handle_command
-from app.llm.client import HAIKU, LLMError, SONNET, stream_completion
+from app.llm.client import HAIKU, SONNET, LLMError, stream_completion
 from app.models import (
     CitationEvent,
     CitationSource,
@@ -43,7 +43,8 @@ _FALLBACK_LLM = (
     f"The models are taking a nap — try again in a moment. Or reach Mark directly at {MARK_EMAIL}."
 )
 _FALLBACK_BOTH_DOWN = (
-    f"Both Haiku and Sonnet are currently unavailable. Try again later or email Mark at {MARK_EMAIL}."
+    f"Both Haiku and Sonnet are currently unavailable. "
+    f"Try again later or email Mark at {MARK_EMAIL}."
 )
 _FALLBACK_EMBEDDING = (
     f"Voyage AI is rate-limiting me (free tier problems). "

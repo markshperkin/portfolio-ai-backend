@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 from fastapi import APIRouter
 from pydantic import BaseModel
 
-from app.llm.client import get_client
+from app.llm.client import HAIKU, SONNET, get_client
 from app.rag.store import get_collection
 
 router = APIRouter(prefix="/api")
@@ -40,18 +40,18 @@ async def _check_knowledge_base() -> CheckResult:
 
 
 async def _check_model() -> CheckResult:
-    try:
-        client = get_client()
-        msg = await client.messages.create(
-            model="claude-haiku-4-5-20251001",
-            max_tokens=1,
-            messages=[{"role": "user", "content": "reply: ok"}],
-        )
-        _ = msg  # just need no exception
-        return CheckResult(status="ok", detail="ready")
-    except Exception as e:
-        log.error("Model check failed: %s", e)
-        return CheckResult(status="error", detail="unavailable")
+    client = get_client()
+    for model_id, label in [(HAIKU, "haiku"), (SONNET, "sonnet")]:
+        try:
+            await client.messages.create(
+                model=model_id,
+                max_tokens=1,
+                messages=[{"role": "user", "content": "reply: ok"}],
+            )
+            return CheckResult(status="ok", detail=label)
+        except Exception as e:
+            log.error("Model check failed for %s: %s", label, e)
+    return CheckResult(status="error", detail="both down")
 
 
 async def _run_checks() -> ReadinessResponse:

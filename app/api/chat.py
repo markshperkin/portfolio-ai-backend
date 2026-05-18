@@ -1,20 +1,21 @@
 from __future__ import annotations
 
 import logging
-from typing import AsyncGenerator
+from typing import AsyncGenerator, Literal
 
 from fastapi import APIRouter, Request
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 from app.commands.handler import detect_command, handle_command
-from app.llm.client import LLMError, stream_completion
+from app.llm.client import HAIKU, SONNET, LLMError, stream_completion
 from app.models import (
     CitationEvent,
     CitationSource,
     DeltaEvent,
     DoneEvent,
     ErrorEvent,
+    ModelEvent,
     RetrievalStepEvent,
     sse_format,
 )
@@ -40,6 +41,10 @@ _NO_MATCH_MSG = (
 
 _FALLBACK_LLM = (
     f"The models are taking a nap — try again in a moment. Or reach Mark directly at {MARK_EMAIL}."
+)
+_FALLBACK_BOTH_DOWN = (
+    f"Both Haiku and Sonnet are currently unavailable. "
+    f"Try again later or email Mark at {MARK_EMAIL}."
 )
 _FALLBACK_EMBEDDING = (
     f"Voyage AI is rate-limiting me (free tier problems). "
@@ -119,11 +124,26 @@ async def _chat_stream(request: ChatRequest, client_ip: str) -> AsyncGenerator[s
 
         anthropic_messages = [{"role": m.role, "content": m.content} for m in request.messages]
 
-        try:
-            async for text in stream_completion(anthropic_messages, system):
-                yield sse_format(DeltaEvent(text=text))
-        except LLMError:
-            yield sse_format(DeltaEvent(text=_FALLBACK_LLM))
+        emitted_model = False
+        succeeded = False
+        _models: list[tuple[str, Literal["haiku", "sonnet"]]] = [
+            (HAIKU, "haiku"),
+            (SONNET, "sonnet"),
+        ]
+        for model_id, model_name in _models:
+            try:
+                async for text in stream_completion(model_id, anthropic_messages, system):
+                    if not emitted_model:
+                        yield sse_format(ModelEvent(model=model_name))
+                        emitted_model = True
+                    yield sse_format(DeltaEvent(text=text))
+                succeeded = True
+                break
+            except LLMError:
+                continue
+
+        if not succeeded:
+            yield sse_format(DeltaEvent(text=_FALLBACK_BOTH_DOWN))
             yield sse_format(DoneEvent())
             return
 

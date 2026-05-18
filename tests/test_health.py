@@ -10,12 +10,6 @@ _app = FastAPI()
 _app.include_router(router)
 
 
-@pytest.fixture(autouse=True)
-def clear_cache():
-    health_module._cache.clear()
-    yield
-    health_module._cache.clear()
-
 
 def _mock_collection(count: int):
     col = MagicMock()
@@ -70,7 +64,22 @@ async def test_model_ok():
          patch("app.api.health.get_client", return_value=_mock_client()):
         async with AsyncClient(transport=ASGITransport(app=_app), base_url="http://test") as ac:
             r = await ac.get("/api/health")
-    assert r.json()["model"]["status"] == "ok"
+    data = r.json()["model"]
+    assert data["status"] == "ok"
+    assert data["detail"] == "haiku"
+
+
+@pytest.mark.asyncio
+async def test_model_sonnet_fallback():
+    client = MagicMock()
+    client.messages.create = AsyncMock(side_effect=[Exception("haiku down"), MagicMock()])
+    with patch("app.api.health.get_collection", return_value=_mock_collection(1)), \
+         patch("app.api.health.get_client", return_value=client):
+        async with AsyncClient(transport=ASGITransport(app=_app), base_url="http://test") as ac:
+            r = await ac.get("/api/health")
+    data = r.json()["model"]
+    assert data["status"] == "ok"
+    assert data["detail"] == "sonnet"
 
 
 @pytest.mark.asyncio
@@ -79,7 +88,9 @@ async def test_model_error():
          patch("app.api.health.get_client", return_value=_mock_client(raise_exc=Exception("api down"))):
         async with AsyncClient(transport=ASGITransport(app=_app), base_url="http://test") as ac:
             r = await ac.get("/api/health")
-    assert r.json()["model"]["status"] == "error"
+    data = r.json()["model"]
+    assert data["status"] == "error"
+    assert data["detail"] == "both down"
 
 
 @pytest.mark.asyncio
@@ -100,5 +111,5 @@ async def test_cache():
         async with AsyncClient(transport=ASGITransport(app=_app), base_url="http://test") as ac:
             await ac.get("/api/health")
             await ac.get("/api/health")
-    col.count.assert_called_once()
-    client.messages.create.assert_called_once()
+    assert col.count.call_count == 2
+    assert client.messages.create.call_count == 2

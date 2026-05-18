@@ -44,7 +44,20 @@ class ActionEvent(BaseModel):
     url: str
 
 
-SSEEvent = RetrievalStepEvent | DeltaEvent | CitationEvent | DoneEvent | ErrorEvent | ActionEvent
+class ModelEvent(BaseModel):
+    type: Literal["model"] = "model"
+    model: Literal["haiku", "sonnet"]
+
+
+SSEEvent = (
+    RetrievalStepEvent
+    | DeltaEvent
+    | CitationEvent
+    | DoneEvent
+    | ErrorEvent
+    | ActionEvent
+    | ModelEvent
+)
 
 
 def sse_format(event: BaseModel) -> str:

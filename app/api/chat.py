@@ -127,7 +127,8 @@ async def _chat_stream(request: ChatRequest, client_ip: str) -> AsyncGenerator[s
         emitted_model = False
         succeeded = False
         _models: list[tuple[str, Literal["haiku", "sonnet"]]] = [
-            (HAIKU, "haiku"), (SONNET, "sonnet")
+            (HAIKU, "haiku"),
+            (SONNET, "sonnet"),
         ]
         for model_id, model_name in _models:
             try:

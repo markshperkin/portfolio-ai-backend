@@ -9,7 +9,7 @@ from typing import Any, AsyncGenerator
 
 import anthropic
 
-MODEL = "claude-haiku-4-5"
+MODEL = "claude-haiku-4-5-20251001"
 MAX_TOKENS = 1024
 STREAM_TIMEOUT = 30  # seconds before giving up on a stalled stream
 

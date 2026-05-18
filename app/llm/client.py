@@ -9,7 +9,8 @@ from typing import Any, AsyncGenerator
 
 import anthropic
 
-MODEL = "claude-haiku-4-5-20251001"
+HAIKU = "claude-haiku-4-5-20251001"
+SONNET = "claude-sonnet-4-6"
 MAX_TOKENS = 1024
 STREAM_TIMEOUT = 30  # seconds before giving up on a stalled stream
 
@@ -33,6 +34,7 @@ class LLMError(Exception):
 
 
 async def stream_completion(
+    model: str,
     messages: list[dict[str, Any]],
     system: str,
 ) -> AsyncGenerator[str, None]:
@@ -40,7 +42,7 @@ async def stream_completion(
     client = get_client()
     try:
         async with client.messages.stream(
-            model=MODEL,
+            model=model,
             max_tokens=MAX_TOKENS,
             system=system,
             messages=messages,  # type: ignore[arg-type]

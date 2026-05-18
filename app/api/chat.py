@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import logging
-from typing import AsyncGenerator
+from typing import AsyncGenerator, Literal
 
 from fastapi import APIRouter, Request
 from fastapi.responses import StreamingResponse
@@ -126,7 +126,10 @@ async def _chat_stream(request: ChatRequest, client_ip: str) -> AsyncGenerator[s
 
         emitted_model = False
         succeeded = False
-        for model_id, model_name in [(HAIKU, "haiku"), (SONNET, "sonnet")]:
+        _models: list[tuple[str, Literal["haiku", "sonnet"]]] = [
+            (HAIKU, "haiku"), (SONNET, "sonnet")
+        ]
+        for model_id, model_name in _models:
             try:
                 async for text in stream_completion(model_id, anthropic_messages, system):
                     if not emitted_model:

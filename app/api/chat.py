@@ -42,8 +42,8 @@ _FALLBACK_LLM = (
     f"The models are taking a nap — try again in a moment. Or reach Mark directly at {MARK_EMAIL}."
 )
 _FALLBACK_EMBEDDING = (
-    f"Having trouble searching the knowledge base right now. "
-    f"Try again in a moment, or email Mark at {MARK_EMAIL}."
+    f"Voyage AI is rate-limiting me (free tier problems). "
+    f"Slow down a bit and try again, or email Mark at {MARK_EMAIL}."
 )
 _FALLBACK_DB = (
     f"The knowledge base is temporarily unavailable. "

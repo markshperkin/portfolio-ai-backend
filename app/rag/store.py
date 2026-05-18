@@ -8,7 +8,7 @@ from pathlib import Path
 import chromadb
 
 COLLECTION_NAME = "chunks"
-_client: chromadb.PersistentClient | None = None
+_client: chromadb.ClientAPI | None = None
 
 
 def get_collection() -> chromadb.Collection:

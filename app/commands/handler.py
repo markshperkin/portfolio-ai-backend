@@ -47,8 +47,6 @@ def detect_command(text: str) -> tuple[str, str] | None:
 async def handle_command(name: str, body: str = "") -> AsyncGenerator[str, None]:
     """Yield SSE chunks for a slash command that doesn't need pipeline handling."""
     if name == "whoami":
-        from app.models import DeltaEvent as _D
-
         response = (
             "I'm Mark's GPT — a RAG-backed assistant trained on Mark Shperkin's actual work: "
             "projects, experience, skills, and more. Ask anything. I'll cite my sources."

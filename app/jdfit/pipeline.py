@@ -13,7 +13,7 @@ from app.jdfit.prompts import (
     SYNTHESIZE_TOOL,
 )
 from app.jdfit.schemas import ExtractionResult, JdfitReport, ScoredRequirement
-from app.llm.client import HAIKU, SONNET, LLMError, call_tool, get_client
+from app.llm.client import HAIKU, SONNET, LLMError, call_tool
 from app.models import (
     CitationEvent,
     CitationSource,
@@ -82,7 +82,7 @@ def _render_markdown(report: JdfitReport) -> str:
         first_section = False
 
     lines.append("---")
-    lines.append(f"**Summary**")
+    lines.append("**Summary**")
     lines.append(report.summary)
     return "\n".join(lines)
 

@@ -33,7 +33,7 @@ EXTRACT_TOOL: dict = {
                     "properties": {
                         "spec": {
                             "type": "string",
-                            "description": "Short label for the requirement (e.g. 'React', 'CI/CD experience')",
+                            "description": "Short label for the requirement (e.g. 'React')",
                         },
                         "category": {
                             "type": "string",

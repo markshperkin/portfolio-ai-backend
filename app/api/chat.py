@@ -34,9 +34,7 @@ router = APIRouter(prefix="/api")
 _T_WEAK = 0.35
 _WORD_CAP = 3000
 
-_WORD_CAP_MSG = (
-    f"You've reached the {_WORD_CAP}-word input cap. Please shorten your message."
-)
+_WORD_CAP_MSG = f"You've reached the {_WORD_CAP}-word input cap. Please shorten your message."
 _NO_MATCH_MSG = (
     "I don't have enough information about that in my knowledge base. "
     "Ask about Mark's projects, work, or skills — or reach him directly "

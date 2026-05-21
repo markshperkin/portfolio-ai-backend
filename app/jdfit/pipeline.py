@@ -29,13 +29,9 @@ log = logging.getLogger(__name__)
 
 _T_WEAK = 0.35
 _NO_REQS_MSG = (
-    "Couldn't find any job requirements in that text. "
-    "Paste a real job description and try again."
+    "Couldn't find any job requirements in that text. Paste a real job description and try again."
 )
-_FALLBACK_MSG = (
-    "Something went wrong analysing the job description. "
-    "Try again in a moment."
-)
+_FALLBACK_MSG = "Something went wrong analysing the job description. Try again in a moment."
 
 _CATEGORY_LABELS = {
     "must_have": "Must-have requirements",
@@ -118,9 +114,7 @@ async def run_jdfit(jd: str) -> AsyncGenerator[str, None]:
 
     specs = [r.spec for r in extraction.requirements]
     try:
-        results: list[list[ChunkResult]] = await asyncio.gather(
-            *[retrieve(spec) for spec in specs]
-        )
+        results: list[list[ChunkResult]] = await asyncio.gather(*[retrieve(spec) for spec in specs])
     except Exception:
         log.exception("jdfit retrieval step failed")
         yield sse_format(DeltaEvent(text=_FALLBACK_MSG))

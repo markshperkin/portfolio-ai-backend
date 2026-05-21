@@ -77,7 +77,7 @@ async def call_tool(
     """
     client = get_client()
     try:
-        response = await client.messages.create(
+        response = await client.messages.create(  # type: ignore[call-overload]
             model=model,
             max_tokens=MAX_TOKENS_JDFIT,
             system=system,

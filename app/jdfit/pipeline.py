@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from typing import AsyncGenerator
+from typing import AsyncGenerator, Literal
 
 from app.jdfit.prompts import (
     EXTRACT_SYSTEM,
@@ -41,14 +41,20 @@ _CATEGORY_LABELS = {
 _CATEGORY_ORDER = ["must_have", "nice_to_have", "soft"]
 
 
+_FALLBACK_MODELS: list[tuple[str, Literal["haiku", "sonnet"]]] = [
+    (HAIKU, "haiku"),
+    (SONNET, "sonnet"),
+]
+
+
 async def _call_with_fallback(
     messages: list[dict],
     system: str,
     tool: dict,
     tool_name: str,
-) -> tuple[dict, str]:
+) -> tuple[dict, Literal["haiku", "sonnet"]]:
     """Try Haiku, fall back to Sonnet. Returns (input_dict, model_name)."""
-    for model_id, model_name in [(HAIKU, "haiku"), (SONNET, "sonnet")]:
+    for model_id, model_name in _FALLBACK_MODELS:
         try:
             result = await call_tool(model_id, messages, system, tool, tool_name)
             return result, model_name

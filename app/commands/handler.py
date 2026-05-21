@@ -15,7 +15,7 @@ from typing import AsyncGenerator
 from app.models import ActionEvent, DeltaEvent, DoneEvent, sse_format
 
 _PATTERN = re.compile(
-    r"^\s*/(?P<name>[\w-]+)(?:\s+(?P<body>.+?))?\s*$",
+    r"^\s*/(?P<name>[\w-]+)(?:\s+(?P<body>.+?))?[.!?]?\s*$",
     re.IGNORECASE | re.DOTALL,
 )
 

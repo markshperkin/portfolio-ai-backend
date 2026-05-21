@@ -1,8 +1,10 @@
-"""Slash command detection and response (TASK-15-BE + TASK-18).
+"""Slash command detection and dispatch.
 
-Commands short-circuit before RAG, abuse classifier, and rate limiting.
-Matching: full-line only (no match if embedded in longer message).
-Tolerance: case-insensitive, leading/trailing whitespace, optional trailing .!?
+Commands short-circuit before RAG, abuse classifier, and rate limiting
+(except /jdfit with body — see chat.py for special handling).
+
+Matching: full-line only, case-insensitive, leading/trailing whitespace tolerated.
+All commands start with /. Any /name not in the known set returns "unknown".
 """
 
 from __future__ import annotations
@@ -10,62 +12,50 @@ from __future__ import annotations
 import re
 from typing import AsyncGenerator
 
-from app.models import DeltaEvent, DoneEvent, sse_format
+from app.models import ActionEvent, DeltaEvent, DoneEvent, sse_format
 
-# --- Patterns (full-line, case-insensitive) ---
-
-_FLAGS = re.IGNORECASE
-_TAIL = r"[.!?]?\s*$"  # optional trailing punctuation
-
-_WHOAMI = re.compile(r"^\s*whoami" + _TAIL, _FLAGS)
-_HELP = re.compile(r"^\s*/help" + _TAIL, _FLAGS)
-_HIRE = re.compile(r"^\s*sudo\s+hire-?mark" + _TAIL, _FLAGS)
-_RESUME = re.compile(r"^\s*cat\s+resume\.pdf" + _TAIL, _FLAGS)
-
-# Any standalone slash / sudo / cat that didn't match above → unknown command
-_ANY_SLASH = re.compile(r"^\s*(/\S+|sudo\s+\S+|cat\s+\S.*)" + _TAIL, _FLAGS)
-
-# --- Canned response text ---
-
-_WHOAMI_TEXT = (
-    "I'm Mark's GPT — a RAG-backed assistant trained on Mark Shperkin's actual work: "
-    "projects, experience, skills, and more. Ask anything. I'll cite my sources."
+_PATTERN = re.compile(
+    r"^\s*/(?P<name>[\w-]+)(?:\s+(?P<body>.+?))?\s*$",
+    re.IGNORECASE | re.DOTALL,
 )
 
 _HELP_TEXT = """\
 Available commands:
-  whoami          → what I am
-  /help           → all commands
-  sudo hire-mark  → Mark's contact info
-  cat resume.pdf  → download his résumé"""
+  /whoami         → what I am
+  /help           → show this menu
+  /hire-mark      → Mark's contact info
+  /resume         → download his résumé
+  /jdfit <jd>     → paste a job description to get a personalised fit report\
+"""
 
 _UNKNOWN_TEXT = "command not found — try /help"
 
-
-def detect_command(text: str) -> str | None:
-    """Return the canonical command key if text is a standalone command, else None."""
-    t = text.strip()
-    if _WHOAMI.match(t):
-        return "whoami"
-    if _HELP.match(t):
-        return "/help"
-    if _HIRE.match(t):
-        return "sudo hire-mark"
-    if _RESUME.match(t):
-        return "cat resume.pdf"
-    if _ANY_SLASH.match(t):
-        return "unknown"
-    return None
+_JDFIT_USAGE = "Don't forget to paste the job description after /jdfit."
 
 
-async def handle_command(cmd: str) -> AsyncGenerator[str, None]:
-    """Yield SSE chunks for a recognized (or unknown) slash command."""
-    if cmd == "whoami":
-        response = _WHOAMI_TEXT
-    elif cmd == "/help":
+def detect_command(text: str) -> tuple[str, str] | None:
+    """Return (name, body) if text is a slash command, else None.
+
+    name is lowercased. body is stripped, may be empty string.
+    """
+    m = _PATTERN.match(text.strip())
+    if m is None:
+        return None
+    return m.group("name").lower(), (m.group("body") or "").strip()
+
+
+async def handle_command(name: str, body: str = "") -> AsyncGenerator[str, None]:
+    """Yield SSE chunks for a slash command that doesn't need pipeline handling."""
+    if name == "whoami":
+        from app.models import DeltaEvent as _D
+
+        response = (
+            "I'm Mark's GPT — a RAG-backed assistant trained on Mark Shperkin's actual work: "
+            "projects, experience, skills, and more. Ask anything. I'll cite my sources."
+        )
+    elif name == "help":
         response = _HELP_TEXT
-    elif cmd == "sudo hire-mark":
-        # Populated in TASK-16 (HITL) — contacts.py constants replace this
+    elif name == "hire-mark":
         from app.prompt import contacts as _c
 
         response = (
@@ -74,14 +64,14 @@ async def handle_command(cmd: str) -> AsyncGenerator[str, None]:
             f"  LinkedIn: {_c.MARK_LINKEDIN_URL}\n"
             f"  Calendly: {_c.MARK_CALENDLY_URL}"
         )
-    elif cmd == "cat resume.pdf":
-        # Populated in TASK-17-BE (HITL) — emits action event before done
-        from app.models import ActionEvent
-
+    elif name == "resume":
         yield sse_format(DeltaEvent(text="Opening résumé…"))
         yield sse_format(ActionEvent(action_type="download", url="/api/resume.pdf"))
         yield sse_format(DoneEvent())
         return
+    elif name == "jdfit":
+        # body-less case — with body is routed through the pipeline in chat.py
+        response = _JDFIT_USAGE
     else:
         response = _UNKNOWN_TEXT
 

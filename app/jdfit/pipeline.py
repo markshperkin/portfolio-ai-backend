@@ -101,8 +101,8 @@ async def run_jdfit(jd: str) -> AsyncGenerator[str, None]:
             extract_messages, EXTRACT_SYSTEM, EXTRACT_TOOL, "extract_requirements"
         )
         extraction = ExtractionResult.model_validate(raw)
-    except (LLMError, Exception):
-        log.exception("jdfit extract step failed")
+    except Exception as exc:
+        log.exception("jdfit extract step failed (%s: %s)", type(exc).__name__, exc)
         yield sse_format(DeltaEvent(text=_FALLBACK_MSG))
         yield sse_format(DoneEvent())
         return
@@ -152,9 +152,13 @@ async def run_jdfit(jd: str) -> AsyncGenerator[str, None]:
         raw_report, model_name = await _call_with_fallback(
             synth_messages, SYNTHESIZE_SYSTEM, SYNTHESIZE_TOOL, "submit_jdfit_report"
         )
+        log.debug(
+            "jdfit raw_report keys: %s",
+            list(raw_report.keys()) if isinstance(raw_report, dict) else type(raw_report),
+        )
         report = JdfitReport.model_validate(raw_report)
-    except (LLMError, Exception):
-        log.exception("jdfit synthesize step failed")
+    except Exception as exc:
+        log.exception("jdfit synthesize step failed (%s: %s)", type(exc).__name__, exc)
         yield sse_format(DeltaEvent(text=_FALLBACK_MSG))
         yield sse_format(DoneEvent())
         return

@@ -12,7 +12,7 @@ import anthropic
 HAIKU = "claude-haiku-4-5-20251001"
 SONNET = "claude-sonnet-4-6"
 MAX_TOKENS = 1024
-MAX_TOKENS_JDFIT = 2048
+MAX_TOKENS_JDFIT = 4096
 STREAM_TIMEOUT = 30  # seconds before giving up on a stalled stream
 
 log = logging.getLogger(__name__)
@@ -98,3 +98,6 @@ async def call_tool(
     except anthropic.APIStatusError as e:
         log.error("Anthropic API error %s: %s", e.status_code, e.message)
         raise LLMError("api_error") from e
+    except asyncio.TimeoutError:
+        log.error("call_tool timeout for model=%s tool=%s", model, tool_name)
+        raise LLMError("timeout")

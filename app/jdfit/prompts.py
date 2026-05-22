@@ -64,7 +64,7 @@ retrieved from Mark's portfolio and work history. Score each requirement from \
   6–8  solid evidence, some depth
   9–10 strong demonstrated experience with depth and impact
 
-Write 1–2 concise sentences of reasoning per requirement. Cite specifics from \
+Write exactly 1 short sentence of reasoning per requirement. Cite specifics from \
 the evidence when available (project names, outcomes, technologies). If no \
 evidence is provided for a requirement, say so honestly — do not invent coverage.
 

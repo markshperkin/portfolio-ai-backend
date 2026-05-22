@@ -12,7 +12,7 @@ import anthropic
 HAIKU = "claude-haiku-4-5-20251001"
 SONNET = "claude-sonnet-4-6"
 MAX_TOKENS = 1024
-MAX_TOKENS_JDFIT = 4096
+MAX_TOKENS_JDFIT = 8192
 STREAM_TIMEOUT = 30  # seconds before giving up on a stalled stream
 
 log = logging.getLogger(__name__)

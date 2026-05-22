@@ -100,7 +100,17 @@ def _render_markdown(report: JdfitReport) -> str:
         first_section = False
 
     lines.append("---")
-    lines.append("**Summary**")
+    lines.append(f"**Overall Fit: {report.overall_score}/10**")
+    lines.append("")
+    lines.append("**Strengths**")
+    for s in report.strengths:
+        lines.append(f"- {s}")
+    if report.gaps:
+        lines.append("")
+        lines.append("**Gaps**")
+        for g in report.gaps:
+            lines.append(f"- {g}")
+    lines.append("")
     lines.append(report.summary)
     return "\n".join(lines)
 

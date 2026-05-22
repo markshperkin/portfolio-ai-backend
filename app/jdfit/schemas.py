@@ -25,4 +25,7 @@ class ScoredRequirement(BaseModel):
 
 class JdfitReport(BaseModel):
     requirements: list[ScoredRequirement]
+    overall_score: int = Field(ge=0, le=10)
+    strengths: list[str]
+    gaps: list[str] = Field(default_factory=list)
     summary: str

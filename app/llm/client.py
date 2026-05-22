@@ -85,6 +85,9 @@ async def call_tool(
             tools=[tool],  # type: ignore[arg-type]
             tool_choice={"type": "tool", "name": tool_name},
         )
+        if response.stop_reason == "max_tokens":
+            log.error("call_tool max_tokens: model=%s tool=%s", model, tool_name)
+            raise LLMError("max_tokens")
         for block in response.content:
             if block.type == "tool_use" and block.name == tool_name:
                 return block.input  # type: ignore[return-value]

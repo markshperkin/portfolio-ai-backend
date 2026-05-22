@@ -31,7 +31,23 @@ _T_WEAK = 0.35
 _NO_REQS_MSG = (
     "Couldn't find any job requirements in that text. Paste a real job description and try again."
 )
-_FALLBACK_MSG = "Something went wrong analysing the job description. Try again in a moment."
+_ERR_OVERLOADED = "AI models are currently overloaded — try again in a moment."
+_ERR_UNREACHABLE = "Couldn't reach the AI right now — try again in a moment."
+_ERR_TIMEOUT = "The analysis timed out — try again."
+_ERR_TOO_LARGE = "Job description is too large to analyse — try a shorter one."
+_ERR_RAG_DOWN = "Couldn't search the knowledge base — try again in a moment."
+
+
+def _llm_err_msg(e: LLMError) -> str:
+    code = str(e)
+    if code in ("rate_limit", "api_error"):
+        return _ERR_OVERLOADED
+    if code == "timeout":
+        return _ERR_TIMEOUT
+    if code == "max_tokens":
+        return _ERR_TOO_LARGE
+    return _ERR_UNREACHABLE
+
 
 _CATEGORY_LABELS = {
     "must_have": "Must-have requirements",
@@ -101,9 +117,14 @@ async def run_jdfit(jd: str) -> AsyncGenerator[str, None]:
             extract_messages, EXTRACT_SYSTEM, EXTRACT_TOOL, "extract_requirements"
         )
         extraction = ExtractionResult.model_validate(raw)
+    except LLMError as exc:
+        log.error("jdfit extract step failed: %s", exc)
+        yield sse_format(DeltaEvent(text=_llm_err_msg(exc)))
+        yield sse_format(DoneEvent())
+        return
     except Exception as exc:
         log.exception("jdfit extract step failed (%s: %s)", type(exc).__name__, exc)
-        yield sse_format(DeltaEvent(text=_FALLBACK_MSG))
+        yield sse_format(DeltaEvent(text=_ERR_UNREACHABLE))
         yield sse_format(DoneEvent())
         return
 
@@ -123,7 +144,7 @@ async def run_jdfit(jd: str) -> AsyncGenerator[str, None]:
         results: list[list[ChunkResult]] = await asyncio.gather(*[retrieve(spec) for spec in specs])
     except Exception:
         log.exception("jdfit retrieval step failed")
-        yield sse_format(DeltaEvent(text=_FALLBACK_MSG))
+        yield sse_format(DeltaEvent(text=_ERR_RAG_DOWN))
         yield sse_format(DoneEvent())
         return
 
@@ -157,9 +178,14 @@ async def run_jdfit(jd: str) -> AsyncGenerator[str, None]:
             list(raw_report.keys()) if isinstance(raw_report, dict) else type(raw_report),
         )
         report = JdfitReport.model_validate(raw_report)
+    except LLMError as exc:
+        log.error("jdfit synthesize step failed: %s", exc)
+        yield sse_format(DeltaEvent(text=_llm_err_msg(exc)))
+        yield sse_format(DoneEvent())
+        return
     except Exception as exc:
         log.exception("jdfit synthesize step failed (%s: %s)", type(exc).__name__, exc)
-        yield sse_format(DeltaEvent(text=_FALLBACK_MSG))
+        yield sse_format(DeltaEvent(text=_ERR_UNREACHABLE))
         yield sse_format(DoneEvent())
         return
 

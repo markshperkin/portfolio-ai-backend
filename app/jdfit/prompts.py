@@ -16,8 +16,12 @@ Classify each extracted item as:
   nice_to_have — preferred, a plus, or beneficial
   soft        — behavioural traits, soft skills, communication, culture fit
 
-Extract every distinct requirement. Do not summarise or merge related items \
-unless they are truly the same skill (e.g. "React" and "React.js" are the same).
+Extract every distinct requirement. Consolidate related items that represent the \
+same underlying skill or concept into a single requirement — e.g. "Python" and \
+"Python scripting" → "Python"; "REST APIs" and "RESTful web services" → "REST APIs"; \
+"communication skills" and "strong written communication" → "communication skills". \
+Keep requirements separate only when they represent genuinely distinct skills \
+(e.g. "Python" and "Go" stay separate).
 """
 
 EXTRACT_TOOL: dict = {

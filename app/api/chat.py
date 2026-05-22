@@ -43,10 +43,6 @@ _NO_MATCH_MSG = (
 _FALLBACK_LLM = (
     f"The models are taking a nap — try again in a moment. Or reach Mark directly at {MARK_EMAIL}."
 )
-_FALLBACK_BOTH_DOWN = (
-    f"Both Haiku and Sonnet are currently unavailable. "
-    f"Try again later or email Mark at {MARK_EMAIL}."
-)
 _FALLBACK_EMBEDDING = (
     f"Voyage AI is rate-limiting me (free tier problems). "
     f"Slow down a bit and try again, or email Mark at {MARK_EMAIL}."
@@ -55,6 +51,23 @@ _FALLBACK_DB = (
     f"The knowledge base is temporarily unavailable. "
     f"Email Mark at {MARK_EMAIL} and he'll respond directly."
 )
+
+
+def _llm_err_msg(e: LLMError | None) -> str:
+    code = str(e) if e else ""
+    if code in ("rate_limit", "api_error"):
+        return (
+            "AI models are currently overloaded — try again in a moment. Or reach Mark at "
+            + MARK_EMAIL
+            + "."
+        )
+    if code == "timeout":
+        return "The AI timed out — try again. Or reach Mark at " + MARK_EMAIL + "."
+    return (
+        "Both Haiku and Sonnet are currently unavailable. Try again later or email Mark at "
+        + MARK_EMAIL
+        + "."
+    )
 
 
 class Message(BaseModel):
@@ -154,6 +167,7 @@ async def _chat_stream(request: ChatRequest, client_ip: str) -> AsyncGenerator[s
 
         emitted_model = False
         succeeded = False
+        last_llm_err: LLMError | None = None
         _models: list[tuple[str, Literal["haiku", "sonnet"]]] = [
             (HAIKU, "haiku"),
             (SONNET, "sonnet"),
@@ -167,11 +181,12 @@ async def _chat_stream(request: ChatRequest, client_ip: str) -> AsyncGenerator[s
                     yield sse_format(DeltaEvent(text=text))
                 succeeded = True
                 break
-            except LLMError:
+            except LLMError as e:
+                last_llm_err = e
                 continue
 
         if not succeeded:
-            yield sse_format(DeltaEvent(text=_FALLBACK_BOTH_DOWN))
+            yield sse_format(DeltaEvent(text=_llm_err_msg(last_llm_err)))
             yield sse_format(DoneEvent())
             return
 

@@ -10,7 +10,7 @@ from pydantic import BaseModel
 
 class RetrievalStepEvent(BaseModel):
     type: Literal["retrieval_step"] = "retrieval_step"
-    step: Literal["retrieving", "searching", "synthesizing"]
+    step: Literal["extracting", "retrieving", "searching", "synthesizing"]
     detail: Optional[str] = None
 
 

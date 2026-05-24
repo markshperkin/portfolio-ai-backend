@@ -8,6 +8,7 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 from app.commands.handler import detect_command, handle_command
+from app.jdfit.pipeline import run_jdfit
 from app.llm.client import HAIKU, SONNET, LLMError, stream_completion
 from app.models import (
     CitationEvent,
@@ -30,21 +31,17 @@ log = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api")
 
-# Cosine similarity threshold — below this, skip LLM and return no-match message
 _T_WEAK = 0.35
+_WORD_CAP = 3000
 
+_WORD_CAP_MSG = f"You've reached the {_WORD_CAP}-word input cap. Please shorten your message."
 _NO_MATCH_MSG = (
     "I don't have enough information about that in my knowledge base. "
     "Ask about Mark's projects, work, or skills — or reach him directly "
     f"at {MARK_EMAIL}."
 )
-
 _FALLBACK_LLM = (
     f"The models are taking a nap — try again in a moment. Or reach Mark directly at {MARK_EMAIL}."
-)
-_FALLBACK_BOTH_DOWN = (
-    f"Both Haiku and Sonnet are currently unavailable. "
-    f"Try again later or email Mark at {MARK_EMAIL}."
 )
 _FALLBACK_EMBEDDING = (
     f"Voyage AI is rate-limiting me (free tier problems). "
@@ -54,6 +51,23 @@ _FALLBACK_DB = (
     f"The knowledge base is temporarily unavailable. "
     f"Email Mark at {MARK_EMAIL} and he'll respond directly."
 )
+
+
+def _llm_err_msg(e: LLMError | None) -> str:
+    code = str(e) if e else ""
+    if code in ("rate_limit", "api_error"):
+        return (
+            "AI models are currently overloaded — try again in a moment. Or reach Mark at "
+            + MARK_EMAIL
+            + "."
+        )
+    if code == "timeout":
+        return "The AI timed out — try again. Or reach Mark at " + MARK_EMAIL + "."
+    return (
+        "Both Haiku and Sonnet are currently unavailable. Try again later or email Mark at "
+        + MARK_EMAIL
+        + "."
+    )
 
 
 class Message(BaseModel):
@@ -74,28 +88,56 @@ async def _chat_stream(request: ChatRequest, client_ip: str) -> AsyncGenerator[s
 
     query = user_messages[-1].content
 
-    # 1. Slash command short-circuit (before everything)
+    # 1. Word cap (applies to all input including /jdfit bodies)
+    if len(query.split()) > _WORD_CAP:
+        yield sse_format(DeltaEvent(text=_WORD_CAP_MSG))
+        yield sse_format(DoneEvent())
+        return
+
+    # 2. Slash command detection
     cmd = detect_command(query)
+
     if cmd is not None:
-        async for chunk in handle_command(cmd):
+        name, body = cmd
+
+        # /jdfit with body — runs through abuse + rate-limit then pipeline
+        if name == "jdfit" and body:
+            is_abuse, abuse_msg = await check_and_log_abuse(client_ip, body)
+            if is_abuse:
+                yield sse_format(DeltaEvent(text=abuse_msg))
+                yield sse_format(DoneEvent())
+                return
+
+            allowed, rate_msg = await check_rate_limit(client_ip)
+            if not allowed:
+                yield sse_format(DeltaEvent(text=rate_msg))
+                yield sse_format(DoneEvent())
+                return
+
+            async for chunk in run_jdfit(body):
+                yield chunk
+            return
+
+        # All other commands (incl. /jdfit with no body)
+        async for chunk in handle_command(name, body):
             yield chunk
         return
 
-    # 2. Abuse / jailbreak check
+    # 3. Abuse / jailbreak check
     is_abuse, abuse_msg = await check_and_log_abuse(client_ip, query)
     if is_abuse:
         yield sse_format(DeltaEvent(text=abuse_msg))
         yield sse_format(DoneEvent())
         return
 
-    # 3. Rate limit
+    # 4. Rate limit
     allowed, rate_msg = await check_rate_limit(client_ip)
     if not allowed:
         yield sse_format(DeltaEvent(text=rate_msg))
         yield sse_format(DoneEvent())
         return
 
-    # 4. RAG pipeline with typed error mapping
+    # 5. RAG pipeline with typed error mapping
     try:
         yield sse_format(RetrievalStepEvent(step="retrieving", detail="searching knowledge base"))
         try:
@@ -110,7 +152,6 @@ async def _chat_stream(request: ChatRequest, client_ip: str) -> AsyncGenerator[s
             yield sse_format(DoneEvent())
             return
 
-        # 4a. Threshold check — skip LLM if no meaningful match
         top_score = chunks[0].score if chunks else 0.0
         if top_score < _T_WEAK:
             yield sse_format(DeltaEvent(text=_NO_MATCH_MSG))
@@ -126,6 +167,7 @@ async def _chat_stream(request: ChatRequest, client_ip: str) -> AsyncGenerator[s
 
         emitted_model = False
         succeeded = False
+        last_llm_err: LLMError | None = None
         _models: list[tuple[str, Literal["haiku", "sonnet"]]] = [
             (HAIKU, "haiku"),
             (SONNET, "sonnet"),
@@ -139,15 +181,15 @@ async def _chat_stream(request: ChatRequest, client_ip: str) -> AsyncGenerator[s
                     yield sse_format(DeltaEvent(text=text))
                 succeeded = True
                 break
-            except LLMError:
+            except LLMError as e:
+                last_llm_err = e
                 continue
 
         if not succeeded:
-            yield sse_format(DeltaEvent(text=_FALLBACK_BOTH_DOWN))
+            yield sse_format(DeltaEvent(text=_llm_err_msg(last_llm_err)))
             yield sse_format(DoneEvent())
             return
 
-        # Citation: de-duped by source path
         seen: set[str] = set()
         sources: list[CitationSource] = []
         for result in chunks:

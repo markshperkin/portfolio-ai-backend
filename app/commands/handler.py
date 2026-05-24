@@ -58,9 +58,9 @@ async def handle_command(name: str, body: str = "") -> AsyncGenerator[str, None]
 
         response = (
             f"Here's how to reach Mark:\n\n"
-            f"  Email:    {_c.MARK_EMAIL}\n"
-            f"  LinkedIn: {_c.MARK_LINKEDIN_URL}\n"
-            f"  Calendly: {_c.MARK_CALENDLY_URL}"
+            f"- [markshperkin1@gmail.com](mailto:{_c.MARK_EMAIL})\n"
+            f"- [LinkedIn](https://www.linkedin.com/in/mark-shperkin/)\n"
+            f"- [Book a call](https://calendly.com/markshperkin1/30min)"
         )
     elif name == "resume":
         yield sse_format(DeltaEvent(text="Opening résumé…"))

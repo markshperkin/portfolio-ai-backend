@@ -150,7 +150,7 @@ async def run_jdfit(jd: str) -> AsyncGenerator[str, None]:
 
     specs = [r.spec for r in extraction.requirements]
     try:
-        results: list[list[ChunkResult]] = await retrieve_many(specs, top_k=3)
+        results: list[list[ChunkResult]] = await retrieve_many(specs, top_k=2)
     except Exception:
         log.exception("jdfit retrieval step failed")
         yield sse_format(DeltaEvent(text=_ERR_RAG_DOWN))

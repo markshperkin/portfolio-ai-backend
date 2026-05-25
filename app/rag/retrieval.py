@@ -5,7 +5,7 @@ from __future__ import annotations
 import asyncio
 from dataclasses import dataclass
 
-from app.rag.embedding import embed_query
+from app.rag.embedding import embed_batch, embed_query
 from app.rag.store import get_collection
 
 
@@ -15,6 +15,14 @@ class ChunkResult:
     title: str
     content: str
     score: float
+
+
+async def retrieve_many(queries: list[str], top_k: int = 3) -> list[list[ChunkResult]]:
+    """Embed all queries in one batch call, then fan out Chroma lookups in parallel."""
+    vectors = await asyncio.to_thread(embed_batch, queries)
+    return list(
+        await asyncio.gather(*[asyncio.to_thread(_query_chroma, vec, top_k) for vec in vectors])
+    )
 
 
 async def retrieve(query: str, top_k: int = 5) -> list[ChunkResult]:

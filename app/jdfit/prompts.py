@@ -16,12 +16,18 @@ Classify each extracted item as:
   nice_to_have — preferred, a plus, or beneficial
   soft        — behavioural traits, soft skills, communication, culture fit
 
-Extract every distinct requirement. Consolidate related items that represent the \
-same underlying skill or concept into a single requirement — e.g. "Python" and \
-"Python scripting" → "Python"; "REST APIs" and "RESTful web services" → "REST APIs"; \
-"communication skills" and "strong written communication" → "communication skills". \
-Keep requirements separate only when they represent genuinely distinct skills \
-(e.g. "Python" and "Go" stay separate).
+Extract all must-have requirements without exception. For nice-to-have and soft \
+skills, extract only those that are specific and technically meaningful — skip \
+generic ones. Consolidate related items that represent the same underlying skill \
+or concept into a single requirement — e.g. "Python" and "Python scripting" → \
+"Python"; "REST APIs" and "RESTful web services" → "REST APIs". Keep requirements \
+separate only when they represent genuinely distinct skills (e.g. "Python" and \
+"Go" stay separate).
+
+Skip universally-assumed requirements that appear in nearly every JD and add no \
+signal — e.g. "communication skills", "team player", "attention to detail", \
+"problem-solving", "fast learner". Only extract soft skills that are specific and \
+differentiating.
 """
 
 EXTRACT_TOOL: dict = {

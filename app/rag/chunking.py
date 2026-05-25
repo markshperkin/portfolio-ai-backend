@@ -2,8 +2,13 @@
 
 from __future__ import annotations
 
+CHUNK_TOKENS = 400
+OVERLAP_TOKENS = 70
 
-def chunk_text(text: str, chunk_tokens: int = 800, overlap_tokens: int = 100) -> list[str]:
+
+def chunk_text(
+    text: str, chunk_tokens: int = CHUNK_TOKENS, overlap_tokens: int = OVERLAP_TOKENS
+) -> list[str]:
     """Split text into chunks of ~chunk_tokens words with overlap_tokens overlap.
 
     Uses whitespace-split word count as a proxy for tokens (accurate to ±20%

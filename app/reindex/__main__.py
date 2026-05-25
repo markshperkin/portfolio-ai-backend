@@ -37,8 +37,6 @@ def parse_args() -> argparse.Namespace:
         required=not default_corpus,
         help="Path to clean_data corpus root (overrides CORPUS_PATH env var)",
     )
-    p.add_argument("--chunk-tokens", type=int, default=400)
-    p.add_argument("--overlap-tokens", type=int, default=70)
     return p.parse_args()
 
 
@@ -61,7 +59,7 @@ def main() -> None:
     metadatas: list[dict] = []
 
     for doc in docs:
-        chunks = chunk_text(doc.body, args.chunk_tokens, args.overlap_tokens)
+        chunks = chunk_text(doc.body)
         for i, chunk in enumerate(chunks):
             ids.append(f"{doc.path}::{i}")
             documents.append(chunk)

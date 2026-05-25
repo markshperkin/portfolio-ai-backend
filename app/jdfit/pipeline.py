@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import asyncio
 import logging
 from typing import AsyncGenerator, Literal
 
@@ -23,7 +22,7 @@ from app.models import (
     RetrievalStepEvent,
     sse_format,
 )
-from app.rag.retrieval import ChunkResult, retrieve
+from app.rag.retrieval import ChunkResult, retrieve_many
 
 log = logging.getLogger(__name__)
 
@@ -151,7 +150,7 @@ async def run_jdfit(jd: str) -> AsyncGenerator[str, None]:
 
     specs = [r.spec for r in extraction.requirements]
     try:
-        results: list[list[ChunkResult]] = await asyncio.gather(*[retrieve(spec) for spec in specs])
+        results: list[list[ChunkResult]] = await retrieve_many(specs, top_k=3)
     except Exception:
         log.exception("jdfit retrieval step failed")
         yield sse_format(DeltaEvent(text=_ERR_RAG_DOWN))
@@ -171,7 +170,7 @@ async def run_jdfit(jd: str) -> AsyncGenerator[str, None]:
         block = f"Requirement: {req.spec} (category: {req.category})\n"
         if chunks:
             for i, c in enumerate(chunks, 1):
-                block += f"  Evidence {i} [{c.title}]: {c.content[:400]}\n"
+                block += f"  Evidence {i} [{c.title}]: {c.content}\n"
         else:
             block += "  Evidence: none found in knowledge base\n"
         synth_blocks.append(block)

@@ -154,6 +154,8 @@ async def _chat_stream(request: ChatRequest, client_ip: str) -> AsyncGenerator[s
             return
 
         # 6. RAG retrieval (skipped for conversational messages with no queries)
+        if queries:
+            queries = [query] + queries  # raw message preserved as anchor query
         query_chunk_pairs: list[tuple[str, list[ChunkResult]]] = []
         if queries:
             yield sse_format(

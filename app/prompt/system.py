@@ -126,3 +126,23 @@ def build_system_prompt(chunks: list[ChunkResult]) -> str:
 
     context = "\n\n---\n\n".join(blocks)
     return f"{_MEGA_PROMPT}\n\nContext:\n\n{context}"
+
+
+def build_system_prompt_grouped(pairs: list[tuple[str, list[ChunkResult]]]) -> str:
+    """Build system prompt from query→chunks pairs produced by the query planner.
+
+    Empty pairs means conversational message with no retrieval needed — returns
+    base prompt without the "no context" fallback note.
+    """
+    if not pairs:
+        return _MEGA_PROMPT
+
+    blocks: list[str] = []
+    for query, chunks in pairs:
+        blocks.append(f"[Query: {query}]")
+        for chunk in chunks:
+            blocks.append(f"[Source: {chunk.title}]\n{chunk.content}")
+        blocks.append("")
+
+    context = "\n\n---\n\n".join(b for b in blocks if b)
+    return f"{_MEGA_PROMPT}\n\nContext:\n\n{context}"

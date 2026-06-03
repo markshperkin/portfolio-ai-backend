@@ -50,8 +50,7 @@ _TOOL: dict = {
                 "items": {"type": "string"},
                 "maxItems": 3,
                 "description": (
-                    "1–3 focused search queries. "
-                    "Empty if is_abusive=true or no retrieval needed."
+                    "1–3 focused search queries. Empty if is_abusive=true or no retrieval needed."
                 ),
             },
         },

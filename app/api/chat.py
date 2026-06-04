@@ -165,7 +165,7 @@ async def _chat_stream(request: ChatRequest, client_ip: str) -> AsyncGenerator[s
                 RetrievalStepEvent(step="retrieving", detail="searching knowledge base")
             )
             try:
-                all_results = await retrieve_many(queries, top_k=5)
+                all_results = await retrieve_many(queries, top_k=10)
             except EmbeddingError:
                 yield sse_format(DeltaEvent(text=_FALLBACK_EMBEDDING))
                 yield sse_format(DoneEvent())

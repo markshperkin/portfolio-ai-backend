@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import os
 from typing import AsyncGenerator, Literal
 
 from app.jdfit.prompts import (
@@ -16,6 +17,7 @@ from app.llm.client import HAIKU, SONNET, LLMError, call_tool
 from app.models import (
     CitationEvent,
     CitationSource,
+    DebugEvent,
     DeltaEvent,
     DoneEvent,
     ModelEvent,
@@ -161,6 +163,28 @@ async def run_jdfit(jd: str) -> AsyncGenerator[str, None]:
     evidence: list[list[ChunkResult]] = [
         [c for c in chunks if c.score >= _T_WEAK] for chunks in results
     ]
+
+    if os.environ.get("APP_ENV") == "test":
+        yield sse_format(
+            DebugEvent(
+                data={
+                    "results": [
+                        {
+                            "query": spec,
+                            "chunks": [
+                                {
+                                    "title": c.title,
+                                    "score": round(c.score, 3),
+                                    "passed": c.score >= _T_WEAK,
+                                }
+                                for c in chunks
+                            ],
+                        }
+                        for spec, chunks in zip(specs, results)
+                    ]
+                }
+            )
+        )
 
     # Step 3 — synthesize report
     yield sse_format(RetrievalStepEvent(step="synthesizing"))

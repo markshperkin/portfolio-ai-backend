@@ -159,8 +159,6 @@ async def _chat_stream(request: ChatRequest, client_ip: str) -> AsyncGenerator[s
         if queries:
             queries = [query] + queries  # raw message preserved as anchor query
 
-        if os.environ.get("APP_ENV") == "test":
-            yield sse_format(DebugEvent(data={"queries": queries}))
         query_chunk_pairs: list[tuple[str, list[ChunkResult]]] = []
         if queries:
             yield sse_format(
@@ -182,6 +180,29 @@ async def _chat_stream(request: ChatRequest, client_ip: str) -> AsyncGenerator[s
                 passing = [c for c in chunks if c.score >= _T_WEAK]
                 if passing:
                     query_chunk_pairs.append((q, passing))
+
+            if os.environ.get("APP_ENV") == "test":
+                yield sse_format(
+                    DebugEvent(
+                        data={
+                            "queries": queries,
+                            "results": [
+                                {
+                                    "query": q,
+                                    "chunks": [
+                                        {
+                                            "title": c.title,
+                                            "score": round(c.score, 3),
+                                            "passed": c.score >= _T_WEAK,
+                                        }
+                                        for c in chunks
+                                    ],
+                                }
+                                for q, chunks in zip(queries, all_results)
+                            ],
+                        }
+                    )
+                )
 
             if not query_chunk_pairs:
                 yield sse_format(DeltaEvent(text=_NO_MATCH_MSG))

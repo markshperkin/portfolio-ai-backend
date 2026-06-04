@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import os
 from typing import AsyncGenerator, Literal
 
 from fastapi import APIRouter, Request
@@ -13,6 +14,7 @@ from app.llm.client import HAIKU, SONNET, LLMError, stream_completion
 from app.models import (
     CitationEvent,
     CitationSource,
+    DebugEvent,
     DeltaEvent,
     DoneEvent,
     ErrorEvent,
@@ -152,6 +154,9 @@ async def _chat_stream(request: ChatRequest, client_ip: str) -> AsyncGenerator[s
             yield sse_format(DeltaEvent(text=refusal_msg))
             yield sse_format(DoneEvent())
             return
+
+        if os.environ.get("APP_ENV") == "test":
+            yield sse_format(DebugEvent(data={"queries": queries}))
 
         # 6. RAG retrieval (skipped for conversational messages with no queries)
         if queries:

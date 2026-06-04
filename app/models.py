@@ -49,6 +49,11 @@ class ModelEvent(BaseModel):
     model: Literal["haiku", "sonnet"]
 
 
+class DebugEvent(BaseModel):
+    type: Literal["debug"] = "debug"
+    data: dict
+
+
 SSEEvent = (
     RetrievalStepEvent
     | DeltaEvent
@@ -57,6 +62,7 @@ SSEEvent = (
     | ErrorEvent
     | ActionEvent
     | ModelEvent
+    | DebugEvent
 )
 
 

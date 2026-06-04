@@ -155,12 +155,12 @@ async def _chat_stream(request: ChatRequest, client_ip: str) -> AsyncGenerator[s
             yield sse_format(DoneEvent())
             return
 
-        if os.environ.get("APP_ENV") == "test":
-            yield sse_format(DebugEvent(data={"queries": queries}))
-
         # 6. RAG retrieval (skipped for conversational messages with no queries)
         if queries:
             queries = [query] + queries  # raw message preserved as anchor query
+
+        if os.environ.get("APP_ENV") == "test":
+            yield sse_format(DebugEvent(data={"queries": queries}))
         query_chunk_pairs: list[tuple[str, list[ChunkResult]]] = []
         if queries:
             yield sse_format(

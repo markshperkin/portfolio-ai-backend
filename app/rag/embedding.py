@@ -29,7 +29,7 @@ def get_client() -> voyageai.Client:
 
 
 def embed_batch(texts: list[str]) -> list[list[float]]:
-    """Embed a batch of texts. Raises EmbeddingError on failure."""
+    """Embed a batch of document texts. Raises EmbeddingError on failure."""
     if not texts:
         return []
     try:
@@ -39,6 +39,19 @@ def embed_batch(texts: list[str]) -> list[list[float]]:
     except Exception as e:
         log.error("Voyage embed_batch error: %s", e)
         raise EmbeddingError("batch") from e
+
+
+def embed_batch_queries(texts: list[str]) -> list[list[float]]:
+    """Embed a batch of query strings. Raises EmbeddingError on failure."""
+    if not texts:
+        return []
+    try:
+        client = get_client()
+        result = client.embed(texts, model=MODEL, input_type="query")
+        return result.embeddings  # type: ignore[return-value]
+    except Exception as e:
+        log.error("Voyage embed_batch_queries error: %s", e)
+        raise EmbeddingError("batch_queries") from e
 
 
 def embed_query(text: str) -> list[float]:

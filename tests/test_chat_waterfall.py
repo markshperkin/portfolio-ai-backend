@@ -36,12 +36,17 @@ def _parse_sse(content: bytes) -> list[dict]:
     return events
 
 
+_PLAN_RESULT = (False, "", ["tell me about mark"])
+_RETRIEVE_MANY_RESULT = [_CHUNKS]
+
+
 def _base_patches():
     return [
         patch("app.api.chat.check_and_log_abuse", new=AsyncMock(return_value=(False, ""))),
         patch("app.api.chat.check_rate_limit", new=AsyncMock(return_value=(True, ""))),
-        patch("app.api.chat.retrieve", new=AsyncMock(return_value=_CHUNKS)),
-        patch("app.api.chat.build_system_prompt", return_value="system"),
+        patch("app.api.chat.plan_queries", new=AsyncMock(return_value=_PLAN_RESULT)),
+        patch("app.api.chat.retrieve_many", new=AsyncMock(return_value=_RETRIEVE_MANY_RESULT)),
+        patch("app.api.chat.build_system_prompt_grouped", return_value="system"),
     ]
 
 

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import os
 from typing import AsyncGenerator, Literal
 
 from fastapi import APIRouter, Request
@@ -13,6 +14,7 @@ from app.llm.client import HAIKU, SONNET, LLMError, stream_completion
 from app.models import (
     CitationEvent,
     CitationSource,
+    DebugEvent,
     DeltaEvent,
     DoneEvent,
     ErrorEvent,
@@ -21,9 +23,10 @@ from app.models import (
     sse_format,
 )
 from app.prompt.contacts import MARK_EMAIL
-from app.prompt.system import build_system_prompt
+from app.prompt.system import build_system_prompt_grouped
 from app.rag.embedding import EmbeddingError
-from app.rag.retrieval import retrieve
+from app.rag.query_planner import plan_queries
+from app.rag.retrieval import ChunkResult, retrieve_many
 from app.security.abuse import check_and_log_abuse
 from app.security.rate_limit import check_rate_limit
 
@@ -137,29 +140,78 @@ async def _chat_stream(request: ChatRequest, client_ip: str) -> AsyncGenerator[s
         yield sse_format(DoneEvent())
         return
 
-    # 5. RAG pipeline with typed error mapping
+    # 5. Query planning: intent detection + query generation
     try:
-        yield sse_format(RetrievalStepEvent(step="retrieving", detail="searching knowledge base"))
+        yield sse_format(RetrievalStepEvent(step="planning", detail="planning queries"))
         try:
-            chunks = await retrieve(query)
-        except EmbeddingError:
-            yield sse_format(DeltaEvent(text=_FALLBACK_EMBEDDING))
-            yield sse_format(DoneEvent())
-            return
-        except Exception:
-            log.exception("DB retrieval error for query=%r", query[:80])
-            yield sse_format(DeltaEvent(text=_FALLBACK_DB))
+            is_abusive, refusal_msg, queries = await plan_queries(query, client_ip)
+        except LLMError as e:
+            yield sse_format(DeltaEvent(text=_llm_err_msg(e)))
             yield sse_format(DoneEvent())
             return
 
-        top_score = chunks[0].score if chunks else 0.0
-        if top_score < _T_WEAK:
-            yield sse_format(DeltaEvent(text=_NO_MATCH_MSG))
+        if is_abusive:
+            yield sse_format(DeltaEvent(text=refusal_msg))
             yield sse_format(DoneEvent())
             return
 
-        yield sse_format(RetrievalStepEvent(step="searching", detail="ranking results"))
-        system = build_system_prompt(chunks)
+        # 6. RAG retrieval (skipped for conversational messages with no queries)
+        if queries:
+            queries = [query] + queries  # raw message preserved as anchor query
+
+        query_chunk_pairs: list[tuple[str, list[ChunkResult]]] = []
+        if queries:
+            yield sse_format(
+                RetrievalStepEvent(step="retrieving", detail="searching knowledge base")
+            )
+            try:
+                all_results = await retrieve_many(queries, top_k=3)
+            except EmbeddingError:
+                yield sse_format(DeltaEvent(text=_FALLBACK_EMBEDDING))
+                yield sse_format(DoneEvent())
+                return
+            except Exception:
+                log.exception("DB retrieval error for query=%r", query[:80])
+                yield sse_format(DeltaEvent(text=_FALLBACK_DB))
+                yield sse_format(DoneEvent())
+                return
+
+            for q, chunks in zip(queries, all_results):
+                passing = [c for c in chunks if c.score >= _T_WEAK]
+                if passing:
+                    query_chunk_pairs.append((q, passing))
+
+            if os.environ.get("APP_ENV") == "test":
+                yield sse_format(
+                    DebugEvent(
+                        data={
+                            "queries": queries,
+                            "results": [
+                                {
+                                    "query": q,
+                                    "chunks": [
+                                        {
+                                            "title": c.title,
+                                            "score": round(c.score, 3),
+                                            "passed": c.score >= _T_WEAK,
+                                        }
+                                        for c in chunks
+                                    ],
+                                }
+                                for q, chunks in zip(queries, all_results)
+                            ],
+                        }
+                    )
+                )
+
+            if not query_chunk_pairs:
+                yield sse_format(DeltaEvent(text=_NO_MATCH_MSG))
+                yield sse_format(DoneEvent())
+                return
+
+            yield sse_format(RetrievalStepEvent(step="searching", detail="ranking results"))
+
+        system = build_system_prompt_grouped(query_chunk_pairs)
 
         yield sse_format(RetrievalStepEvent(step="synthesizing"))
 
@@ -192,10 +244,11 @@ async def _chat_stream(request: ChatRequest, client_ip: str) -> AsyncGenerator[s
 
         seen: set[str] = set()
         sources: list[CitationSource] = []
-        for result in chunks:
-            if result.source_path not in seen:
-                seen.add(result.source_path)
-                sources.append(CitationSource(title=result.title))
+        for _, chunks in query_chunk_pairs:
+            for result in chunks:
+                if result.source_path not in seen:
+                    seen.add(result.source_path)
+                    sources.append(CitationSource(title=result.title))
 
         if sources:
             yield sse_format(CitationEvent(sources=sources))

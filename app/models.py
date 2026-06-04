@@ -10,7 +10,7 @@ from pydantic import BaseModel
 
 class RetrievalStepEvent(BaseModel):
     type: Literal["retrieval_step"] = "retrieval_step"
-    step: Literal["extracting", "retrieving", "searching", "synthesizing"]
+    step: Literal["planning", "extracting", "retrieving", "searching", "synthesizing"]
     detail: Optional[str] = None
 
 
@@ -49,6 +49,11 @@ class ModelEvent(BaseModel):
     model: Literal["haiku", "sonnet"]
 
 
+class DebugEvent(BaseModel):
+    type: Literal["debug"] = "debug"
+    data: dict
+
+
 SSEEvent = (
     RetrievalStepEvent
     | DeltaEvent
@@ -57,11 +62,12 @@ SSEEvent = (
     | ErrorEvent
     | ActionEvent
     | ModelEvent
+    | DebugEvent
 )
 
 
 def sse_format(event: BaseModel) -> str:
     """Serialise a pydantic event model to SSE wire format."""
-    name = event.model_fields["type"].default  # type: ignore[attr-defined]
+    name = type(event).model_fields["type"].default  # type: ignore[attr-defined]
     data = event.model_dump_json(exclude={"type"})
     return f"event: {name}\ndata: {data}\n\n"

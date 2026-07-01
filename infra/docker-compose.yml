@@ -1,5 +1,7 @@
 networks:
   portfolio:
+  scheduler_net:
+    external: true
 
 volumes:
   caddy_data:
@@ -8,13 +10,21 @@ services:
   caddy:
     image: caddy:latest
     restart: unless-stopped
+    user: "1000:1000"
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_BIND_SERVICE
     ports:
       - "80:80"
       - "443:443"
     volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data
-    networks: [portfolio]
+    tmpfs:
+      - /config:rw,size=16m,mode=1777
+      - /tmp:rw,noexec,nosuid,size=16m
+    networks: [portfolio, scheduler_net]
 
   backend-test:
     image: ghcr.io/markshperkin/portfolio-ai-backend:test

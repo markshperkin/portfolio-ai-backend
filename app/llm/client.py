@@ -1,18 +1,18 @@
-"""Anthropic Haiku streaming client with timeout and error mapping (TASK-24-BE)."""
+"""Anthropic client: streaming and tool calls with error mapping (TASK-24-BE, ADR 009)."""
 
 from __future__ import annotations
 
 import asyncio
 import logging
 import os
-from typing import Any, AsyncGenerator
+from typing import Any, AsyncGenerator, Final
 
 import anthropic
 
-HAIKU = "claude-haiku-4-5-20251001"
-SONNET = "claude-sonnet-4-6"
-MAX_TOKENS = 4096
-MAX_TOKENS_JDFIT = 8192
+HAIKU = "claude-haiku-5-5"
+SONNET = "claude-sonnet-5-5"
+EFFORT: Final = "high"
+MAX_TOKENS = 16000
 STREAM_TIMEOUT = 30  # seconds before giving up on a stalled stream
 
 log = logging.getLogger(__name__)
@@ -30,8 +30,21 @@ def get_client() -> anthropic.AsyncAnthropic:
     return _client
 
 
+REFUSAL_MESSAGE = "I can't help with that one — try rephrasing your question."
+
+
 class LLMError(Exception):
     """Raised when the LLM call fails in a way chat.py should handle."""
+
+
+class LLMRefusal(Exception):
+    """The model declined for safety reasons. Not an LLMError, so callers never retry it
+    on the fallback model."""
+
+
+def _log_refusal(message: Any, model: str, step: str) -> None:
+    category = getattr(getattr(message, "stop_details", None), "category", None)
+    log.warning("model refusal: model=%s step=%s category=%s", model, step, category)
 
 
 async def stream_completion(
@@ -39,17 +52,27 @@ async def stream_completion(
     messages: list[dict[str, Any]],
     system: str,
 ) -> AsyncGenerator[str, None]:
-    """Stream text tokens from Anthropic. Raises LLMError on failure."""
+    """Stream text tokens from Anthropic. Raises LLMError on failure.
+
+    A refusal ends the stream with REFUSAL_MESSAGE instead of raising.
+    """
     client = get_client()
     try:
         async with client.messages.stream(
             model=model,
             max_tokens=MAX_TOKENS,
+            output_config={"effort": EFFORT},
             system=system,
             messages=messages,  # type: ignore[arg-type]
         ) as stream:
+            streamed_text = False
             async for text in stream.text_stream:
+                streamed_text = True
                 yield text
+            final = await stream.get_final_message()
+            if final.stop_reason == "refusal":
+                _log_refusal(final, model, "chat")
+                yield ("\n\n" if streamed_text else "") + REFUSAL_MESSAGE
     except anthropic.APIConnectionError as e:
         log.error("Anthropic connection error: %s", e)
         raise LLMError("connection") from e
@@ -73,18 +96,23 @@ async def call_tool(
 ) -> dict[str, Any]:
     """Non-streaming Anthropic tool-use call. Returns the validated tool input dict.
 
-    Forces the model to call tool_name. Raises LLMError on failure.
+    The system prompt tells the model to call tool_name. Raises LLMError on failure and
+    LLMRefusal when the model declines.
     """
     client = get_client()
     try:
         response = await client.messages.create(  # type: ignore[call-overload]
             model=model,
-            max_tokens=MAX_TOKENS_JDFIT,
+            max_tokens=MAX_TOKENS,
+            output_config={"effort": EFFORT},
             system=system,
             messages=messages,  # type: ignore[arg-type]
             tools=[tool],  # type: ignore[arg-type]
-            tool_choice={"type": "tool", "name": tool_name},
+            tool_choice={"type": "auto"},
         )
+        if response.stop_reason == "refusal":
+            _log_refusal(response, model, tool_name)
+            raise LLMRefusal(tool_name)
         if response.stop_reason == "max_tokens":
             log.error("call_tool max_tokens: model=%s tool=%s", model, tool_name)
             raise LLMError("max_tokens")

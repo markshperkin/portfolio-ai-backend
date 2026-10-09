@@ -22,7 +22,7 @@ jobs:
         run: pip install ruff mypy
 
       - name: Install stubs and dependencies for mypy
-        run: pip install types-PyYAML fastapi pydantic anthropic
+        run: pip install types-PyYAML fastapi pydantic anthropic==0.100.0
 
       - name: Ruff lint
         run: ruff check app/
@@ -36,7 +36,7 @@ jobs:
   deploy:
     needs: lint
     runs-on: ubuntu-latest
-    if: github.event_name == 'push' && (github.ref == 'refs/heads/test' || github.ref == 'refs/heads/prod')
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/prod' || (github.ref == 'refs/heads/test' && vars.DEPLOY_TEST == 'true'))
     env:
       BRANCH: ${{ github.ref_name }}
       IMAGE: ghcr.io/markshperkin/portfolio-ai-backend

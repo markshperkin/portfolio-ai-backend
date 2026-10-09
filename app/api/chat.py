@@ -10,7 +10,14 @@ from pydantic import BaseModel
 
 from app.commands.handler import detect_command, handle_command
 from app.jdfit.pipeline import run_jdfit
-from app.llm.client import HAIKU, SONNET, LLMError, stream_completion
+from app.llm.client import (
+    HAIKU,
+    REFUSAL_MESSAGE,
+    SONNET,
+    LLMError,
+    LLMRefusal,
+    stream_completion,
+)
 from app.models import (
     CitationEvent,
     CitationSource,
@@ -145,6 +152,10 @@ async def _chat_stream(request: ChatRequest, client_ip: str) -> AsyncGenerator[s
         yield sse_format(RetrievalStepEvent(step="planning", detail="planning queries"))
         try:
             is_abusive, refusal_msg, queries = await plan_queries(query, client_ip)
+        except LLMRefusal:
+            yield sse_format(DeltaEvent(text=REFUSAL_MESSAGE))
+            yield sse_format(DoneEvent())
+            return
         except LLMError as e:
             yield sse_format(DeltaEvent(text=_llm_err_msg(e)))
             yield sse_format(DoneEvent())

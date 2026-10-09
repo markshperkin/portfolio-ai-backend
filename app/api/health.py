@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 from fastapi import APIRouter
 from pydantic import BaseModel
 
-from app.llm.client import HAIKU, SONNET, get_client
+from app.llm.client import EFFORT, HAIKU, SONNET, get_client
 from app.rag.store import get_collection
 
 router = APIRouter(prefix="/api")
@@ -45,7 +45,8 @@ async def _check_model() -> CheckResult:
         try:
             await client.messages.create(
                 model=model_id,
-                max_tokens=1,
+                max_tokens=16,
+                output_config={"effort": EFFORT},
                 messages=[{"role": "user", "content": "reply: ok"}],
             )
             return CheckResult(status="ok", detail=label)

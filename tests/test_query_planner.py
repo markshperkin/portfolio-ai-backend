@@ -221,3 +221,6 @@ async def test_planner_refusal_shows_canned_message_and_stops(monkeypatch, abuse
     assert api.models() == [HAIKU]
     retrieve.assert_not_called()
     stream.assert_not_called()
+    async with aiosqlite.connect(abuse_db) as db:
+        rows = await (await db.execute("SELECT COUNT(*) FROM abuse_log")).fetchone()
+    assert rows == (0,)

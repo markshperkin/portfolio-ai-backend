@@ -22,7 +22,7 @@ jobs:
         run: pip install ruff mypy
 
       - name: Install stubs and dependencies for mypy
-        run: pip install types-PyYAML fastapi pydantic anthropic
+        run: pip install types-PyYAML fastapi pydantic anthropic==0.100.0
 
       - name: Ruff lint
         run: ruff check app/

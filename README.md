@@ -104,3 +104,9 @@ uvicorn app.main:app --reload --port 8000
 ## Deployment
 
 Push to `test` or `prod` branch → GitHub Actions builds Docker image → pushes to GHCR (`ghcr.io/markshperkin/portfolio-ai-backend:<branch>`) → SSH-deploys to VPS via `docker compose up -d`.
+
+`test` deploys only when the repo variable `DEPLOY_TEST` is `true` (unset = checks only, no deploy). Turn test deploys back on with:
+
+```bash
+gh variable set DEPLOY_TEST --body true -R markshperkin/portfolio-ai-backend
+```

@@ -1,18 +1,18 @@
-"""Anthropic Haiku streaming client with timeout and error mapping (TASK-24-BE)."""
+"""Anthropic client: streaming and tool calls with error mapping (TASK-24-BE, ADR 009)."""
 
 from __future__ import annotations
 
 import asyncio
 import logging
 import os
-from typing import Any, AsyncGenerator
+from typing import Any, AsyncGenerator, Final
 
 import anthropic
 
-HAIKU = "claude-haiku-4-5-20251001"
-SONNET = "claude-sonnet-4-6"
-MAX_TOKENS = 4096
-MAX_TOKENS_JDFIT = 8192
+HAIKU = "claude-haiku-5-5"
+SONNET = "claude-sonnet-5-5"
+EFFORT: Final = "high"
+MAX_TOKENS = 16000
 STREAM_TIMEOUT = 30  # seconds before giving up on a stalled stream
 
 log = logging.getLogger(__name__)
@@ -45,6 +45,7 @@ async def stream_completion(
         async with client.messages.stream(
             model=model,
             max_tokens=MAX_TOKENS,
+            output_config={"effort": EFFORT},
             system=system,
             messages=messages,  # type: ignore[arg-type]
         ) as stream:
@@ -73,17 +74,18 @@ async def call_tool(
 ) -> dict[str, Any]:
     """Non-streaming Anthropic tool-use call. Returns the validated tool input dict.
 
-    Forces the model to call tool_name. Raises LLMError on failure.
+    The system prompt tells the model to call tool_name. Raises LLMError on failure.
     """
     client = get_client()
     try:
         response = await client.messages.create(  # type: ignore[call-overload]
             model=model,
-            max_tokens=MAX_TOKENS_JDFIT,
+            max_tokens=MAX_TOKENS,
+            output_config={"effort": EFFORT},
             system=system,
             messages=messages,  # type: ignore[arg-type]
             tools=[tool],  # type: ignore[arg-type]
-            tool_choice={"type": "tool", "name": tool_name},
+            tool_choice={"type": "auto"},
         )
         if response.stop_reason == "max_tokens":
             log.error("call_tool max_tokens: model=%s tool=%s", model, tool_name)

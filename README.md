@@ -4,7 +4,7 @@ Python FastAPI backend for Mark's GPT — a RAG-backed AI assistant that answers
 
 ## What It Does
 
-Receives a chat message, retrieves the most relevant chunks from a Chroma vector store, injects them into a system prompt, and streams a grounded response from Anthropic Claude Haiku over Server-Sent Events (SSE). Refuses to answer if no relevant context is found.
+Receives a chat message, retrieves the most relevant chunks from a Chroma vector store, injects them into a system prompt, and streams a grounded response from Anthropic Claude Haiku 5.5 (Sonnet 5.5 as fallback) over Server-Sent Events (SSE). Refuses to answer if no relevant context is found.
 
 ## Architecture
 
@@ -25,7 +25,7 @@ Threshold gate: score < 0.35 → refuse, ≥ 0.35 → proceed
     ↓
 Build system prompt (persona + guardrails + retrieved context)
     ↓
-Stream Claude Haiku → SSE delta/citation/done events
+Stream Claude Haiku 5.5 (fallback Sonnet 5.5) → SSE delta/citation/done events
 ```
 
 ## Tech Stack
@@ -33,7 +33,7 @@ Stream Claude Haiku → SSE delta/citation/done events
 | Layer | Technology |
 |---|---|
 | Web framework | FastAPI 0.111+, Uvicorn 0.29+ |
-| LLM | Anthropic Claude Haiku 4.5 (`claude-haiku-4-5-20251001`) |
+| LLM | Anthropic Claude Haiku 5.5 (`claude-haiku-5-5`), fallback Claude Sonnet 5.5 (`claude-sonnet-5-5`) — ADR 009 |
 | Embeddings | Voyage AI `voyage-3-large` (1024 dims) |
 | Vector DB | ChromaDB (HNSW index, cosine similarity, file-based) |
 | Async DB | aiosqlite (abuse log) |

@@ -8,8 +8,9 @@ from httpx import ASGITransport, AsyncClient
 from unittest.mock import AsyncMock, patch
 
 from app.api.chat import router
-from app.llm.client import HAIKU, LLMError
+from app.llm.client import HAIKU, REFUSAL_MESSAGE, LLMError
 from app.rag.retrieval import ChunkResult
+from tests import anthropic_fake as fake
 
 _app = FastAPI()
 _app.include_router(router)
@@ -126,3 +127,42 @@ async def test_model_event_emitted_once_on_haiku():
 
     assert call_count == 1
     assert sum(1 for e in events if e["type"] == "model") == 1
+
+
+# --- refusal on the answer stream (real SDK over a fake API) ---
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "blocks, expected_text",
+    [
+        ([{"type": "thinking"}], REFUSAL_MESSAGE),
+        (
+            [{"type": "thinking"}, {"type": "text", "pieces": ["Mark worked on "]}],
+            "Mark worked on \n\n" + REFUSAL_MESSAGE,
+        ),
+    ],
+    ids=["no_text", "partial_text"],
+)
+async def test_answer_refusal_shows_canned_message_without_sonnet(
+    monkeypatch, blocks, expected_text
+):
+    api = fake.install(
+        monkeypatch,
+        lambda body: fake.sse_response(blocks, "refusal", stop_details=fake.refusal_details()),
+    )
+    patches = _base_patches()
+    for p in patches:
+        p.start()
+    try:
+        async with AsyncClient(transport=ASGITransport(app=_app), base_url="http://test") as ac:
+            r = await ac.post("/api/chat", json=_REQUEST)
+    finally:
+        for p in patches:
+            p.stop()
+
+    events = _parse_sse(r.content)
+    assert "".join(e["text"] for e in events if e["type"] == "delta") == expected_text
+    assert [e["model"] for e in events if e["type"] == "model"] == ["haiku"]
+    assert sum(1 for e in events if e["type"] == "done") == 1
+    assert api.models() == [HAIKU]

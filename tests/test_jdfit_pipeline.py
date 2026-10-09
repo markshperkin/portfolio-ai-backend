@@ -5,10 +5,16 @@ from unittest.mock import AsyncMock, patch
 import pytest
 
 from app.jdfit.pipeline import run_jdfit
-from app.llm.client import HAIKU, SONNET
+from app.llm.client import HAIKU, REFUSAL_MESSAGE, SONNET
 from app.rag.retrieval import ChunkResult
 from tests import anthropic_fake as fake
-from tests.anthropic_fake import error_response, message_response, thinking, tool_use
+from tests.anthropic_fake import (
+    error_response,
+    message_response,
+    refusal_details,
+    thinking,
+    tool_use,
+)
 from tests.sse_events import of_type, parse_sse, text_of
 
 _JD = """Senior Backend Engineer — AI Platform
@@ -185,3 +191,29 @@ async def test_both_models_reply_in_text_gives_friendly_error(monkeypatch):
 
     assert text_of(events) == "Couldn't reach the AI right now — try again in a moment."
     assert of_type(events, "done") == [{"type": "done"}]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "refusing_step, expected_models",
+    [("extract_requirements", [HAIKU]), ("submit_jdfit_report", [HAIKU, HAIKU])],
+)
+async def test_refusal_shows_canned_message_without_sonnet(
+    monkeypatch, refusing_step, expected_models
+):
+    def respond(body):
+        if body["tools"][0]["name"] == refusing_step:
+            return message_response([thinking()], "refusal", stop_details=refusal_details())
+        return _responder(_report([]))(body)
+
+    api = fake.install(monkeypatch, respond)
+    retrieve = AsyncMock(return_value=_EVIDENCE)
+
+    with patch("app.jdfit.pipeline.retrieve_many", new=retrieve):
+        events = parse_sse("".join([chunk async for chunk in run_jdfit(_JD)]))
+
+    assert text_of(events) == REFUSAL_MESSAGE
+    assert of_type(events, "done") == [{"type": "done"}]
+    assert of_type(events, "model") == [] and of_type(events, "citation") == []
+    assert api.models() == expected_models
+    assert retrieve.called == (refusing_step == "submit_jdfit_report")

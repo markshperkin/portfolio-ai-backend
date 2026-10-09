@@ -13,7 +13,7 @@ from app.jdfit.prompts import (
     SYNTHESIZE_TOOL,
 )
 from app.jdfit.schemas import ExtractionResult, JdfitReport, ScoredRequirement
-from app.llm.client import HAIKU, SONNET, LLMError, call_tool
+from app.llm.client import HAIKU, REFUSAL_MESSAGE, SONNET, LLMError, LLMRefusal, call_tool
 from app.models import (
     CitationEvent,
     CitationSource,
@@ -128,6 +128,10 @@ async def run_jdfit(jd: str) -> AsyncGenerator[str, None]:
             extract_messages, EXTRACT_SYSTEM, EXTRACT_TOOL, "extract_requirements"
         )
         extraction = ExtractionResult.model_validate(raw)
+    except LLMRefusal:
+        yield sse_format(DeltaEvent(text=REFUSAL_MESSAGE))
+        yield sse_format(DoneEvent())
+        return
     except LLMError as exc:
         log.error("jdfit extract step failed: %s", exc)
         yield sse_format(DeltaEvent(text=_llm_err_msg(exc)))
@@ -211,6 +215,10 @@ async def run_jdfit(jd: str) -> AsyncGenerator[str, None]:
             list(raw_report.keys()) if isinstance(raw_report, dict) else type(raw_report),
         )
         report = JdfitReport.model_validate(raw_report)
+    except LLMRefusal:
+        yield sse_format(DeltaEvent(text=REFUSAL_MESSAGE))
+        yield sse_format(DoneEvent())
+        return
     except LLMError as exc:
         log.error("jdfit synthesize step failed: %s", exc)
         yield sse_format(DeltaEvent(text=_llm_err_msg(exc)))

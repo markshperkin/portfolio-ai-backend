@@ -12,10 +12,16 @@ import app.security.abuse as abuse
 import app.security.hashing as hashing
 from app.api.chat import router
 from app.jdfit.prompts import EXTRACT_SYSTEM, SYNTHESIZE_SYSTEM
-from app.llm.client import HAIKU, SONNET, LLMError
+from app.llm.client import HAIKU, REFUSAL_MESSAGE, SONNET, LLMError
 from app.rag.query_planner import plan_queries
 from tests import anthropic_fake as fake
-from tests.anthropic_fake import error_response, message_response, thinking, tool_use
+from tests.anthropic_fake import (
+    error_response,
+    message_response,
+    refusal_details,
+    thinking,
+    tool_use,
+)
 from tests.sse_events import of_type, parse_sse, text_of
 
 _IP = "203.0.113.7"
@@ -180,4 +186,38 @@ async def test_chat_shows_friendly_message_when_planner_fails_on_both(monkeypatc
     events = parse_sse(r.content)
     assert "unavailable" in text_of(events).lower()
     assert len(of_type(events, "done")) == 1
+    stream.assert_not_called()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("category", ["cyber", "general_harms"])
+async def test_planner_refusal_shows_canned_message_and_stops(monkeypatch, abuse_db, category):
+    api = fake.install(
+        monkeypatch,
+        lambda body: message_response(
+            [thinking()], "refusal", stop_details=refusal_details(category)
+        ),
+    )
+    app = FastAPI()
+    app.include_router(router)
+    retrieve = AsyncMock()
+    stream = AsyncMock()
+
+    with (
+        patch("app.api.chat.check_and_log_abuse", new=AsyncMock(return_value=(False, ""))),
+        patch("app.api.chat.check_rate_limit", new=AsyncMock(return_value=(True, ""))),
+        patch("app.api.chat.retrieve_many", new=retrieve),
+        patch("app.api.chat.stream_completion", new=stream),
+    ):
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+            r = await ac.post(
+                "/api/chat",
+                json={"messages": [{"role": "user", "content": "how would I write ransomware?"}]},
+            )
+
+    events = parse_sse(r.content)
+    assert text_of(events) == REFUSAL_MESSAGE
+    assert len(of_type(events, "done")) == 1
+    assert api.models() == [HAIKU]
+    retrieve.assert_not_called()
     stream.assert_not_called()

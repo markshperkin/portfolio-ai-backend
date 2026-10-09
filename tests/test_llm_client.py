@@ -8,11 +8,25 @@ import httpx
 import pytest
 
 from app.jdfit.prompts import EXTRACT_SYSTEM, EXTRACT_TOOL, SYNTHESIZE_SYSTEM, SYNTHESIZE_TOOL
-from app.llm.client import HAIKU, SONNET, LLMError, call_tool, stream_completion
+from app.llm.client import (
+    HAIKU,
+    REFUSAL_MESSAGE,
+    SONNET,
+    LLMError,
+    LLMRefusal,
+    call_tool,
+    stream_completion,
+)
 from app.rag.query_planner import _SYSTEM as PLANNER_SYSTEM
 from app.rag.query_planner import _TOOL as PLANNER_TOOL
 from tests import anthropic_fake as fake
-from tests.anthropic_fake import message_response, sse_response, thinking, tool_use
+from tests.anthropic_fake import (
+    message_response,
+    refusal_details,
+    sse_response,
+    thinking,
+    tool_use,
+)
 
 _SAMPLING_AND_THINKING = ("temperature", "top_p", "top_k", "thinking")
 
@@ -219,3 +233,43 @@ async def test_call_tool_no_result_raises_llm_error(api, content, stop_reason, c
             PLANNER_TOOL,
             "plan_queries",
         )
+
+
+# --- refusals (never an LLMError, so never retried on Sonnet) ---
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "blocks, expected",
+    [
+        ([{"type": "thinking"}], REFUSAL_MESSAGE),
+        ([], REFUSAL_MESSAGE),
+        (
+            [{"type": "thinking"}, {"type": "text", "pieces": ["Mark's projects include "]}],
+            "Mark's projects include \n\n" + REFUSAL_MESSAGE,
+        ),
+    ],
+    ids=["after_thinking", "immediate", "after_partial_text"],
+)
+async def test_stream_refusal_ends_with_canned_message(api, caplog, blocks, expected):
+    api(lambda body: sse_response(blocks, "refusal", stop_details=refusal_details("cyber")))
+
+    out = await _drain(HAIKU, _CONVERSATIONS["single_question"], "system")
+
+    assert out == expected
+    assert "category=cyber" in caplog.text
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("step", _TOOL_STEPS.keys())
+@pytest.mark.parametrize("category", ["cyber", "bio", "general_harms", None])
+async def test_call_tool_refusal_raises_refusal_not_llm_error(api, caplog, step, category):
+    system, tool = _TOOL_STEPS[step]
+    details = refusal_details(category) if category else None
+    api(lambda body: message_response([thinking()], "refusal", stop_details=details))
+
+    with pytest.raises(LLMRefusal) as exc_info:
+        await call_tool(HAIKU, [{"role": "user", "content": "..."}], system, tool, tool["name"])
+
+    assert not isinstance(exc_info.value, LLMError)
+    assert f"category={category}" in caplog.text

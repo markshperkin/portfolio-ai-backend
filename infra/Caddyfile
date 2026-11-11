@@ -3,7 +3,52 @@ test.markshperkin.com {
     reverse_proxy /* frontend-test:3000
 }
 
-markshperkin.com, www.markshperkin.com {
+markgpt.markshperkin.com {
     reverse_proxy /api/* backend-prod:8000
     reverse_proxy /* frontend-prod:3000
+}
+
+markshperkin.com {
+    encode zstd gzip
+    redir /api/* https://markgpt.markshperkin.com{uri} permanent
+    reverse_proxy ms-site-prod:8080
+}
+
+www.markshperkin.com {
+    redir https://markshperkin.com{uri} permanent
+}
+
+scheduler-test.markshperkin.com {
+    reverse_proxy twilio-router:8000
+}
+
+test.wedding.markshperkin.com {
+    reverse_proxy /api/* wed-backend-test:8000
+    reverse_proxy /* wed-frontend-test:3000
+}
+
+wedding.markshperkin.com {
+    reverse_proxy /api/* wed-backend-prod:8000
+    reverse_proxy /* wed-frontend-prod:3000
+}
+
+scheduler-staging.markshperkin.com {
+    reverse_proxy scheduler-staging:8080
+}
+
+portal-staging.markshperkin.com {
+    reverse_proxy portal-staging:8090
+}
+
+portal-scheduler.markshperkin.com {
+    reverse_proxy portal-prod:8090
+}
+
+scheduler.markshperkin.com {
+    encode zstd gzip
+    reverse_proxy landing-prod:8080
+}
+
+analytics.markshperkin.com {
+    reverse_proxy umami-prod:3000
 }

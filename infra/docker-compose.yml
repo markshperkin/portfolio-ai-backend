@@ -2,6 +2,10 @@ networks:
   portfolio:
   scheduler_net:
     external: true
+  wedding_net:
+    external: true
+  markshperkin_net:
+    external: true
 
 volumes:
   caddy_data:
@@ -24,7 +28,7 @@ services:
     tmpfs:
       - /config:rw,size=16m,mode=1777
       - /tmp:rw,noexec,nosuid,size=16m
-    networks: [portfolio, scheduler_net]
+    networks: [portfolio, scheduler_net, wedding_net, markshperkin_net]
 
   backend-test:
     image: ghcr.io/markshperkin/portfolio-ai-backend:test
